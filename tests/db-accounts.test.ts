@@ -128,7 +128,10 @@ async function credits(userId: string) {
 
 function dump() {
   const dir = mkdtempSync(join(tmpdir(), "sw-db-"));
-  const sql = execFileSync("pg_dump", ["--data-only", "--inserts", "--no-owner", "--exclude-table=schema_migrations", process.env.DATABASE_URL ?? ""], { encoding: "utf8" });
+  const sql = execFileSync("pg_dump", ["--data-only", "--inserts", "--no-owner", "--exclude-table=schema_migrations", process.env.DATABASE_URL ?? ""], { encoding: "utf8" })
+    .split("\n")
+    .filter((line) => !line.startsWith("SET transaction_timeout"))
+    .join("\n");
   return { dir, sql };
 }
 
