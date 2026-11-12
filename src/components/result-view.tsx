@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { downloadName, sourceLabel, toHtmlDocument, toMarkdown } from "@/lib/format";
 import { MOCK_NOTICE } from "@/lib/ai/notice";
 import { formatStamp } from "@/lib/dates";
+import { showBlanks } from "@/lib/export/text";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { PublicGeneration } from "@/lib/types";
 
@@ -230,8 +231,8 @@ function ResultBody({
       {result.sections.map((section, sectionIndex) => (
         <section key={`${section.heading}-${sectionIndex}`} className="space-y-2">
           <h3 className="text-lg font-semibold">{section.heading}</h3>
-          {section.paragraphs?.map((paragraph, index) => <p key={`${sectionIndex}-p-${index}`} className="whitespace-pre-wrap text-base leading-7">{paragraph}</p>)}
-          {section.bullets ? <ul className="list-disc space-y-1 pl-5 text-base leading-7">{section.bullets.map((bullet, index) => <li key={`${sectionIndex}-b-${index}`}>{bullet}</li>)}</ul> : null}
+          {section.paragraphs?.map((paragraph, index) => <p key={`${sectionIndex}-p-${index}`} className="whitespace-pre-wrap text-base leading-7">{showBlanks(paragraph)}</p>)}
+          {section.bullets ? <ul className="list-disc space-y-1 pl-5 text-base leading-7">{section.bullets.map((bullet, index) => <li key={`${sectionIndex}-b-${index}`}>{showBlanks(bullet)}</li>)}</ul> : null}
           {section.table ? (
             <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full border-collapse text-base">
@@ -241,7 +242,7 @@ function ResultBody({
                 <tbody>
                   {section.table.rows.map((row, index) => (
                     <tr key={`${sectionIndex}-r-${index}`} className="border-t border-border">
-                      {row.map((cell, cellIndex) => <td key={`${sectionIndex}-${index}-${cellIndex}`} className="px-3 py-2 align-top break-words">{cell}</td>)}
+                      {row.map((cell, cellIndex) => <td key={`${sectionIndex}-${index}-${cellIndex}`} className="px-3 py-2 align-top break-words">{showBlanks(cell)}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -264,8 +265,8 @@ function ResultBody({
               <article key={`${slide.title}-${index}`} className="rounded-xl border border-border bg-card p-4">
                 <p className="text-sm text-clay">{slide.kicker} · {index + 1}</p>
                 <h4 className="mt-1 text-lg font-semibold">{slide.title}</h4>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-base leading-7">{slide.bullets.map((bullet, bulletIndex) => <li key={`${index}-${bulletIndex}`}>{bullet}</li>)}</ul>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">讲者备注：{slide.notes}</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-base leading-7">{slide.bullets.map((bullet, bulletIndex) => <li key={`${index}-${bulletIndex}`}>{showBlanks(bullet)}</li>)}</ul>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">讲者备注：{showBlanks(slide.notes)}</p>
               </article>
             ))}
           </div>

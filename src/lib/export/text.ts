@@ -1,7 +1,14 @@
 export const FORMULA_NOTE = "公式按普通文字保存，不是 Office 公式对象。";
 
+const FILL_IN_BLANK = "（　　）";
+
+// Two or more underscores are a fill-in blank. A single underscore stays, so y_1 is unchanged.
+export function showBlanks(value: string) {
+  return value.replace(/_{2,}/g, FILL_IN_BLANK);
+}
+
 export function cleanText(value: string) {
-  return value.replace(/\u0000/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return showBlanks(value.replace(/\u0000/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
 }
 
 export function visualUnits(value: string) {
