@@ -1,3 +1,5 @@
+import { isImagePayload } from "@/lib/ocr/image";
+
 export type FieldType = "text" | "textarea" | "select" | "file";
 
 export type ToolField = {
@@ -7,6 +9,7 @@ export type ToolField = {
   placeholder?: string;
   required?: boolean;
   hint?: string;
+  accept?: string;
   rows?: number;
   numeric?: boolean;
   options?: { value: string; label: string }[];
@@ -24,6 +27,7 @@ export type ToolDef = {
   featured?: boolean;
   empty: string;
   mapsFrom: string[];
+  ocrTargets?: string[];
   fields: ToolField[];
   example: Record<string, string>;
 };
@@ -263,17 +267,24 @@ export const TOOLS: ToolDef[] = [
     name: "AI作业批改",
     group: "practice",
     blurb: "对照要求批改，并归到一种错因",
-    detail: "根据学生写下的文字给评分和改写建议。不识别照片里的字，图片只记录文件名。",
+    detail: "根据已经确认的文字给评分和改写建议。印刷体图片要先在本机识别，核对并写入题目或作答后才会批改。手写和公式可能不准。照片不会直接送给模型。",
     cost: 1,
     featured: true,
     empty: "生成后有分数、引用学生原句的批注、一个错因，以及改写示例。",
     mapsFrom: ["智批作业机"],
+    ocrTargets: ["prompt", "answer"],
     fields: [
       gradeField,
       subjectField,
       { name: "prompt", label: "题目要求", type: "textarea", required: true, rows: 4, placeholder: "老师或家长布置了什么" },
       { name: "answer", label: "学生作答", type: "textarea", required: true, rows: 6, placeholder: "把学生写的文字贴进来" },
-      { name: "attachment", label: "附件（可选）", type: "file", hint: "文本会读入。图片和扫描件不会被识别，只保留文件名，请把文字贴到作答里。" },
+      {
+        name: "attachment",
+        label: "图片或文本（可选）",
+        type: "file",
+        accept: "image/png,image/jpeg,image/webp,.txt,.md,.json,.csv",
+        hint: "印刷体图片可在本机识别。核对并点写入之后，文字才会进入题目或作答。手写和公式可能不准。图片不进草稿。",
+      },
     ],
     example: {
       grade: "初二",
@@ -438,6 +449,7 @@ export function fieldIssues(tool: ToolDef, raw: unknown) {
       issues.push({ name: field.name, message: `请填写${field.label}` });
       continue;
     }
+    if (text && isImagePayload(text)) issues.push({ name: field.name, message: `${field.label}不能包含图片数据，请改用确认后的文字` });
     if (text.length > 8000) issues.push({ name: field.name, message: `${field.label}太长了，请控制在 8000 字以内` });
     if (field.type === "select" && text && field.options && !field.options.some((option) => option.value === text)) {
       issues.push({ name: field.name, message: `${field.label}不在可选范围内` });
@@ -457,7 +469,8 @@ export function normalizeInput(tool: ToolDef, raw: unknown): { ok: true; input: 
     input[field.name] = typeof value === "string" ? value.trim() : "";
     if (field.type === "file") {
       const extra = src[`${field.name}Text`];
-      input[`${field.name}Text`] = typeof extra === "string" ? extra.slice(0, 8000) : "";
+      const extraText = typeof extra === "string" ? extra : "";
+      input[`${field.name}Text`] = isImagePayload(extraText) ? "" : extraText.slice(0, 8000);
     }
   }
   return { ok: true, input };

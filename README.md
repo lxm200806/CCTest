@@ -85,6 +85,18 @@ AI出课核对时间安排里各段分钟是否等于所选课时。合计行和
 
 页面、复制的 Markdown 和下载的 HTML 都按北京时间（Asia/Shanghai）显示生成时间，不跟服务器所在时区走。
 
+## 图片识别
+
+AI作业批改可以把印刷体图片交给本机的 [Tesseract](https://github.com/tesseract-ocr/tesseract) 识别。它是开源程序，不调用付费接口，也不把图片发给模型。系统需要：
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-eng
+```
+
+语言数据一般在 `/usr/share/tesseract-ocr/5/tessdata`，要有 `chi_sim.traineddata` 和 `eng.traineddata`。没有程序或语言包时，页面写明缺什么，不会返回假文字，也不会扣点。
+
+识别结果要自己改，并点「写入题目要求」或「写入学生作答」之后，才会进入原来的生成。手写和复杂公式可能不准。图片不写入账号 JSON，也不放进浏览器草稿。上传只接受 PNG、JPEG、WebP，有大小和尺寸上限；SVG 和网址不会被读取。
+
 检查用的是确定性夹具，不调用在线模型：
 
 ```bash

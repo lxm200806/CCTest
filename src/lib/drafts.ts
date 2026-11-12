@@ -1,3 +1,5 @@
+import { isImagePayload } from "@/lib/ocr/image";
+
 export function draftKey(toolId: string) {
   return `sw-draft:${toolId}`;
 }
@@ -21,7 +23,7 @@ export function readDraft(storage: { getItem(key: string): string | null }, tool
 export function writeDraft(storage: { setItem(key: string, value: string): void }, toolId: string, input: Record<string, string>) {
   const safe: Record<string, string> = {};
   for (const [key, value] of Object.entries(input)) {
-    if (typeof value === "string") safe[key] = value.slice(0, 8000);
+    if (typeof value === "string") safe[key] = isImagePayload(value) ? "" : value.slice(0, 8000);
   }
   storage.setItem(draftKey(toolId), JSON.stringify(safe));
 }

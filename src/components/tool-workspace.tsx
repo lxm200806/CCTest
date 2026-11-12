@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MOCK_NOTICE } from "@/lib/ai/notice";
+import { OcrPanel } from "@/components/ocr-panel";
 import { draftKey, readDraft, writeDraft } from "@/lib/drafts";
+import { OCR_MAX_BYTES, placeConfirmedText } from "@/lib/ocr/image";
 import { createSingleFlight } from "@/lib/submit-guard";
 import { fieldIssues, getTool, groupLabel, normalizeInput, type ToolField } from "@/lib/tools";
 import type { PublicGeneration } from "@/lib/types";
@@ -66,10 +68,17 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
   const activeTool = useRef(toolId);
   const freshResult = useRef(false);
   const mounted = useRef(true);
+  const [scan, setScan] = useState<{ file: File; url: string } | null>(null);
 
   useEffect(() => () => {
     mounted.current = false;
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scan) URL.revokeObjectURL(scan.url);
+    };
+  }, [scan]);
 
   useEffect(() => {
     if (ready && !user) router.replace(`/login?next=${encodeURIComponent(`/workbench/${toolId}`)}`);
@@ -125,16 +134,50 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
 
   const short = user.credits < tool.cost;
 
+  function clearFileInput(fieldName: string) {
+    const element = document.getElementById(fieldName);
+    if (element instanceof HTMLInputElement) element.value = "";
+  }
+
   async function onFile(field: ToolField, file: File | undefined) {
     if (!file) {
+      setScan(null);
       setInput((current) => ({ ...current, [field.name]: "", [`${field.name}Text`]: "" }));
       return;
     }
+    const raster = file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/jpg" || file.type === "image/webp";
+    if (raster) {
+      if (!tool?.ocrTargets?.length) {
+        setScan(null);
+        setInput((current) => ({ ...current, [field.name]: file.name, [`${field.name}Text`]: "图片不会直接送给模型。请把需要批改的文字贴到文本框。" }));
+        return;
+      }
+      if (file.size > OCR_MAX_BYTES) {
+        setError("图片超过 4MB，没有开始识别。这次不扣点。");
+        clearFileInput(field.name);
+        return;
+      }
+      setScan({ file, url: URL.createObjectURL(file) });
+      setInput((current) => ({
+        ...current,
+        [field.name]: file.name,
+        [`${field.name}Text`]: "图片未交给模型。批改只使用题目和作答里已经确认的文字。",
+      }));
+      return;
+    }
+    setScan(null);
     const textual = /text|json|markdown|csv|plain/.test(file.type) || /\.(txt|md|json|csv)$/i.test(file.name);
     const text = textual && file.size < 200_000
       ? (await file.text()).slice(0, 8000)
-      : `（已选择 ${file.name}，${Math.max(1, Math.ceil(file.size / 1024))} KB。图片和二进制文件不会被识别，只保留文件名。请改用文字。）`;
+      : `（已选择 ${file.name}。这种文件不会被当作图片识别。）`;
     setInput((current) => ({ ...current, [field.name]: file.name, [`${field.name}Text`]: text }));
+  }
+
+  function placeOcr(fieldName: string, recognized: string) {
+    const result = placeConfirmedText(input[fieldName] ?? "", recognized);
+    if (!result.ok) return result.error;
+    setInput((current) => ({ ...current, [fieldName]: result.value }));
+    return "";
   }
 
   function restoreExample() {
@@ -263,7 +306,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
                     id={field.name}
                     className="h-11 text-base md:text-base"
                     type="file"
-                    accept=".txt,.md,.json,.csv,image/*"
+                    accept={field.accept ?? ".txt,.md,.json,.csv,image/png,image/jpeg,image/webp"}
                     aria-invalid={Boolean(message)}
                     aria-describedby={describedBy}
                     disabled={pending}
@@ -285,7 +328,24 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
                 )}
                 {field.hint ? <p id={`${field.name}-hint`} className="text-sm leading-6 text-muted-foreground">{field.hint}</p> : null}
                 {message ? <p id={`${field.name}-error`} className="text-sm leading-6 text-clay">{message}</p> : null}
-                {field.type === "file" && input[field.name] ? <p className="text-sm text-muted-foreground">已选 {input[field.name]}</p> : null}
+                {field.type === "file" && input[field.name] ? <p className="text-sm text-muted-foreground">已选 {input[field.name]}。图片本身不会留在草稿里。</p> : null}
+                {field.type === "file" && scan && tool.ocrTargets?.length ? (
+                  <OcrPanel
+                    file={scan.file}
+                    previewUrl={scan.url}
+                    disabled={pending}
+                    targets={tool.ocrTargets.flatMap((name) => {
+                      const match = tool.fields.find((item) => item.name === name);
+                      return match ? [{ name, label: match.label }] : [];
+                    })}
+                    onRemove={() => {
+                      setScan(null);
+                      setInput((current) => ({ ...current, [field.name]: "", [`${field.name}Text`]: "" }));
+                      clearFileInput(field.name);
+                    }}
+                    onPlace={placeOcr}
+                  />
+                ) : null}
               </div>
             );
           })}
