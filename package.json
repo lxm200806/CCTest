@@ -8,7 +8,11 @@
     "start": "next start -H 0.0.0.0 -p 4317",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs --test --test-reporter=spec tests/*.test.ts"
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs --test --test-reporter=spec tests/*.test.ts",
+    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs scripts/migrate.ts",
+    "db:health": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs scripts/health.ts",
+    "db:invite": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs scripts/invite.ts",
+    "db:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./tests/register.mjs scripts/import-json.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -17,6 +21,7 @@
     "docx": "^9.15.3",
     "lucide-react": "^1.72.0",
     "next": "16.4.6",
+    "pg": "^8.23.1",
     "pptxgenjs": "^4.0.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -27,6 +32,7 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

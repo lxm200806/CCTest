@@ -1,0 +1,42 @@
+{
+  "users": [
+    {
+      "id": "usr_synth",
+      "username": "synth",
+      "displayName": "合成",
+      "passwordHash": "abc",
+      "passwordSalt": "def",
+      "credits": 12,
+      "createdAt": "2026-11-12T00:00:00.000Z"
+    }
+  ],
+  "students": [
+    {
+      "id": "stu_synth",
+      "userId": "usr_synth",
+      "name": "合成",
+      "gradeBand": "primary",
+      "grade": "一年级",
+      "school": "无",
+      "guardian": "合成",
+      "goal": "加法",
+      "weeklyMinutes": 20,
+      "focus": "加法",
+      "subjects": [{ "name": "数学", "level": "稳定", "note": "待观察" }]
+    }
+  ],
+  "checkins": [{ "id": "chk_synth", "userId": "usr_synth", "date": "2026-11-12", "step": 1, "done": true }],
+  "ledger": [{ "id": "led_synth", "userId": "usr_synth", "delta": 12, "balanceAfter": 12, "note": "合成", "createdAt": "2026-11-12T00:00:00.000Z" }],
+  "generations": [
+    {
+      "id": "gen_synth",
+      "userId": "usr_synth",
+      "toolId": "ai-preview",
+      "toolName": "AI预习",
+      "source": "mock",
+      "createdAt": "2026-11-12T00:00:00.000Z",
+      "input": { "topic": "加法" },
+      "result": { "title": "加法", "subtitle": "", "summary": "合成记录", "sections": [] }
+    }
+  ]
+}

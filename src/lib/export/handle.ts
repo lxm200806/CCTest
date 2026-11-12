@@ -13,13 +13,13 @@ export async function handleExport(options: {
   user: PublicUser | null;
   format: string;
   generationId: string;
-  find: (userId: string, generationId: string) => GenerationRecord | null;
+  find: (userId: string, generationId: string) => GenerationRecord | null | Promise<GenerationRecord | null>;
 }) {
   if (!options.user?.id?.trim()) return json({ error: "请先登录" }, 401);
   const format = options.format === "pptx" || options.format === "docx" ? options.format : "";
   if (!format) return json({ error: "只能下载 PPTX 或 DOCX。这次不扣点。" }, 400);
   if (!options.generationId.trim()) return json({ error: "缺少要下载的结果。这次不扣点。" }, 400);
-  const record = options.find(options.user.id, options.generationId);
+  const record = await options.find(options.user.id, options.generationId);
   if (!record) return json({ error: "没有找到这次生成，或它不属于当前账号。这次不扣点。" }, 404);
   const expected = format === "pptx" ? "ai-ppt" : "ai-word";
   if (record.toolId !== expected) return json({ error: format === "pptx" ? "只有 AIPPT 的结果可以下载 PPTX。这次不扣点。" : "只有 AIWORD 的结果可以下载 DOCX。这次不扣点。" }, 400);

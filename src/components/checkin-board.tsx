@@ -96,7 +96,7 @@ function CheckinBoardInner() {
       {data.readonly ? (
         <p className="mt-4 text-sm text-muted-foreground">
           现在是只读预览。
-          <Link href="/login?next=/checkin" className="ml-1 text-pine">登录演示账号</Link>
+          <Link href="/login?next=/checkin" className="ml-1 text-pine">登录</Link>
           后可以勾选。
         </p>
       ) : null}
