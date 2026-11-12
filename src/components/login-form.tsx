@@ -14,8 +14,8 @@ export function LoginForm() {
   const next = params.get("next") || "/workbench";
   const { refresh } = useSession();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("demo");
-  const [password, setPassword] = useState("demo123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -47,7 +47,7 @@ export function LoginForm() {
       <section>
         <p className="text-sm text-pine">本地账号</p>
         <h1 className="mt-2 text-3xl font-semibold">进入工作台</h1>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">演示账号 demo / demo123，初始 36 点。账号和点数都写在这台电脑上。</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">账号由邀请命令创建。公开注册默认关闭。</p>
         <ol className="mt-6 space-y-2">
           {STEPS.map((step) => (
             <li key={step.id} className="text-sm leading-6">
@@ -80,9 +80,6 @@ export function LoginForm() {
         {error ? <p className="text-sm text-clay">{error}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" className="h-11 min-h-11 px-4 text-base" disabled={pending}>{pending ? "正在进入…" : mode === "login" ? "登录" : "创建并进入"}</Button>
-          {mode === "login" ? (
-            <Button type="button" variant="outline" className="h-11 min-h-11 text-base" onClick={() => { setUsername("demo"); setPassword("demo123"); setError(""); }}>填入演示账号</Button>
-          ) : null}
         </div>
       </form>
     </div>

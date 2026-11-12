@@ -8,7 +8,7 @@
 
 账号、点数和生成记录写在本机 `data/store.json`。密码用 scrypt，登录 cookie 是 httpOnly。生成、导出和识别都先看当前登录用户，不能凭别人的编号读取。识别图片不进这份 JSON，也不进浏览器草稿。
 
-这还不是生产环境：单机文件、进程内的重复提交锁、主机上要另装 Tesseract，没有多实例和备份。不要把演示账号当作对外服务。
+内部测试使用本机 PostgreSQL。点数预留、幂等和备份说明在 [operations.md](operations.md)。主机上要另装 Tesseract。这还不是对外服务。
 
 ## 矩阵
 
