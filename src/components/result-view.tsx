@@ -3,6 +3,7 @@
 import { Download, FileJson, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadName, sourceLabel, toHtmlDocument, toMarkdown } from "@/lib/format";
+import { MOCK_NOTICE } from "@/lib/ai/notice";
 import { formatStamp } from "@/lib/dates";
 import type { PublicGeneration } from "@/lib/types";
 
@@ -21,16 +22,18 @@ export function ResultView({
   pending,
   error,
   empty,
+  live = null,
 }: {
   record: PublicGeneration | null;
   pending: boolean;
   error: string;
   empty: string;
+  live?: boolean | null;
 }) {
   if (pending) {
     return (
       <div className="space-y-3" aria-live="polite">
-        <p className="text-sm text-pine">正在按学段整理内容…</p>
+        <p className="text-sm text-pine">{live === false ? "正在整理本地示例…" : "正在请模型按这道材料生成…"}</p>
         <div className="h-6 w-2/3 animate-pulse rounded bg-secondary" />
         <div className="h-24 animate-pulse rounded-xl bg-secondary" />
       </div>
@@ -54,6 +57,7 @@ export function ResultView({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs text-muted-foreground">{sourceLabel(record.source)} · {formatStamp(record.createdAt)}</p>
+          {record.source === "mock" ? <p className="mt-1 text-xs leading-5 text-clay">{MOCK_NOTICE}</p> : null}
           <h2 className="mt-1 text-xl font-semibold leading-snug">{result.title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{result.subtitle}</p>
         </div>

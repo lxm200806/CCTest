@@ -32,23 +32,21 @@ npm start
 
 ## 模型
 
-默认走内置示例生成器，不需要密钥，断网也能出结果。
+配置了 `DEEPSEEK_API_KEY` 后，15 个工具默认调用 DeepSeek 的 `deepseek-flash`（当前对应 DeepSeek-V4.1-Flash-1017）。接口与 OpenAI 兼容，`base_url` 是 `https://api.deepseek.com`。每个工具有自己的提示词：带上年级、学科和用户贴上的材料，并要求返回课案、讲义、试卷、批改、变式、讲稿或提分计划这类结构。解析通过才扣点。超时 60 秒，网络和 5xx 会重试；结果不合格会再要一次修正。
 
-要改用真模型，复制 `.env.example` 为 `.env.local`：
+没有密钥时仍可生成，界面会写明：当前为本地示例，配置 `DEEPSEEK_API_KEY` 后走真模型。
+
+把 `.env.example` 复制为 `.env.local`，只在本机填写密钥：
 
 ```bash
-# 只开其中一个即可。两个都写时，默认用 OpenAI。
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-
-DEEPSEEK_API_KEY=sk-...
-DEEPSEEK_MODEL=deepseek-chat
-
-# mock | openai | deepseek。留空则按上面的密钥自动选。
-AI_PROVIDER=
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-flash
+DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
 
-密钥只从环境变量读取，不会写进页面或仓库。接口失败时不扣点，并退回错误说明。
+密钥只从环境变量或 `.env.local` 读取，不会写进页面或仓库。调用失败不扣点。
+
+若要强制本地示例，设置 `AI_PROVIDER=mock`。只有 `AI_PROVIDER=openai` 且配置了 `OPENAI_API_KEY` 时才改走 OpenAI。
 
 ## 页面
 
@@ -81,7 +79,7 @@ AI_PROVIDER=
 src/app            页面和 Route Handler
 src/components     门户、工作台、打卡、知识库
 src/lib/tools.ts   15 个工具的表单和点数
-src/lib/ai         示例生成器，以及可选的 OpenAI / DeepSeek
+src/lib/ai         各工具的提示词、DeepSeek 调用与结果解析；无密钥时回退示例
 src/lib/store.ts   JSON 文件里的账号、点数、打卡、生成记录
 data/store.json    运行后出现，不提交
 ```

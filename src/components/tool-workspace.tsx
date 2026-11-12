@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { MOCK_NOTICE } from "@/lib/ai/notice";
 import { getTool, groupLabel, normalizeInput, type ToolField } from "@/lib/tools";
 import type { PublicGeneration } from "@/lib/types";
 
@@ -23,10 +24,25 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [loadedPast, setLoadedPast] = useState(false);
+  const [live, setLive] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (ready && !user) router.replace(`/login?next=${encodeURIComponent(`/workbench/${toolId}`)}`);
   }, [ready, user, router, toolId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/ai/status", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => (await response.json()) as { live?: boolean })
+      .then((payload) => {
+        if (!controller.signal.aborted) setLive(Boolean(payload.live));
+      })
+      .catch((caught: unknown) => {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        if (!controller.signal.aborted) setLive(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!user || !tool) return;
@@ -112,6 +128,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
         <div>
           <h1 className="text-3xl font-semibold">{tool.name}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{tool.detail}</p>
+          {live === false ? <p className="mt-2 max-w-2xl text-sm leading-6 text-clay">{MOCK_NOTICE}</p> : null}
         </div>
         <p className="text-sm">本次 <span className="font-semibold">{tool.cost}</span> 点 · 余额 {user.credits}</p>
       </div>
@@ -156,7 +173,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
         </form>
         <div className="min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6">
           {loadedPast && record ? <p className="mb-4 text-xs text-muted-foreground">这是上一次留在本机的结果。</p> : null}
-          <ResultView record={record} pending={pending} error={error} empty={tool.empty} />
+          <ResultView record={record} pending={pending} error={error} empty={tool.empty} live={live} />
         </div>
       </div>
     </div>
