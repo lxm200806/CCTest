@@ -53,6 +53,7 @@ function lesson(input: Record<string, string>): ToolResult {
   const total = Number(val(input, "duration", "40")) || 40;
   const style = val(input, "style", "讲解型");
   const who = voice(grade);
+  const primary = who.band === "primary";
   const names = ["导入", "探究", "例题", "练习", "收束"];
   const ratios = [0.1, 0.25, 0.3, 0.25, 0.1];
   let cursor = 0;
@@ -70,13 +71,15 @@ function lesson(input: Record<string, string>): ToolResult {
     sections: [
       section("这一节只完成一件事", [`课题是「${topic}」。下课前，${who.learner}要能${who.check}。`]),
       section("时间怎么切", [], { table: { headers: ["段落", "时间", "这一段做什么"], rows } }),
-      section("教师口述", [
-        `导入可以这样开口：「今天只看${topic}。先别翻到后面的题。」`,
-        `例题讲完停一次，问${who.learner}：「这一步用到的条件是哪一句？」`,
-        `收束时只留一句：${methodLine(subject, topic)}`,
-      ]),
+      section("教师口述", primary
+        ? [`可以这样说：「今天只看${topic}。」`, `然后问：「你用一句话怎么说？」`]
+        : [
+            `导入可以这样开口：「今天只看${topic}。先别翻到后面的题。」`,
+            `例题讲完停一次，问${who.learner}：「这一步用到的条件是哪一句？」`,
+            `收束时只留一句：${methodLine(subject, topic)}`,
+          ]),
       section("板书", [], { bullets: [`左上：课题「${topic}」`, "中间：一道完整例题", "右侧：一个易错", "最下：检查题的空"] }),
-      section("检查题", [`不看笔记，用两句话解释「${topic}」。做对才算过关。`]),
+      section("检查题", [primary ? `用一句话说「${topic}」。` : `不看笔记，用两句话解释「${topic}」。做对才算过关。`]),
     ],
   };
 }
@@ -125,16 +128,18 @@ function handout(input: Record<string, string>): ToolResult {
   const subject = val(input, "subject");
   const topic = val(input, "topic");
   const depth = val(input, "depth", "基础");
+  const primary = bandOf(val(input, "grade")) === "primary";
+  const math = subject === "数学";
   return {
     title: `${topic}讲义`,
     subtitle: `${val(input, "grade")} ${subject} · ${depth}`,
     summary: "答案放在最后，打印时可以先裁掉。",
     sections: [
       section("概念卡", [`「${topic}」要先回答：它是什么，依赖什么条件，不能用在哪里。`, methodLine(subject, topic)]),
-      section("例题", [subject === "数学" ? `y = 2x - 4 当作「${topic}」的例子。x = 2 时 y = 0。k 为正，x 增大则 y 增大。` : `介绍「${topic}」时先引用一句具体的话，再说明它限定了什么。`]),
-      section("常见错法", [], { bullets: subject === "数学" ? ["把负号当成绝对值", "条件没用完就计算", "坐标不说明哪一个是 x"] : ["概括比原文更宽", "只写感觉，不指原文", "漏掉题干里的限定词"] }),
-      section("练习", [`1. 用一句话写出「${topic}」的条件。`, "2. 改一个数字或一个词，说明结论变了没有。", subject === "数学" ? "3. 计算 y = 2x - 4 在 x = 5 时的值。" : "3. 举一个不能使用的情形。"]),
-      section("参考答案", ["1. 要写条件，不写评价。", "2. 改了关键条件，结论要重写。", subject === "数学" ? "3. y = 2×5 - 4 = 6。" : "3. 只要情形确实缺了条件即可。"]),
+      section("例题", [math ? (primary ? `「${topic}」用 3 加 2。3 加 2 是 5。` : `y = 2x - 4 当作「${topic}」的例子。x = 2 时 y = 0。k 为正，x 增大则 y 增大。`) : `介绍「${topic}」时先引用一句具体的话，再说明它限定了什么。`]),
+      section("常见错法", [], { bullets: math ? (primary ? ["把加号看成减号", "数漏了一个", "得数没有写单位"] : ["把负号当成绝对值", "条件没用完就计算", "坐标不说明哪一个是 x"]) : ["概括比原文更宽", "只写感觉，不指原文", "漏掉题干里的限定词"] }),
+      section("练习", [`1. 用一句话写出「${topic}」的条件。`, "2. 改一个数字或一个词，说明结论变了没有。", math ? (primary ? "3. 4 加 3 是多少？" : "3. 计算 y = 2x - 4 在 x = 5 时的值。") : "3. 举一个不能使用的情形。"]),
+      section("参考答案", ["1. 要写条件，不写评价。", "2. 改了关键条件，结论要重写。", math ? (primary ? "3. 7。" : "3. y = 2×5 - 4 = 6。") : "3. 只要情形确实缺了条件即可。"]),
     ],
   };
 }
@@ -155,7 +160,7 @@ function teachingAid(input: Record<string, string>): ToolResult {
     summary: answers === "答案另附" ? "学生页不印答案。答案在最后一节。" : "答案印在题下，适合带着订正，不适合限时独立做。",
     sections: [
       section("分页", [], { table: { headers: ["页", "作用", "内容"], rows } }),
-      section("练习", ["每题右侧留一厘米写错因词。", "做题时间建议 12 分钟。"]),
+      ...(pages === 1 ? [] : [section("练习", ["每题右侧留一厘米写错因词。", "做题时间建议 12 分钟。"])]),
       section(answers === "答案另附" ? "另附答案" : "页内答案", ["对答案时盖住这一节。错了只重写错的那一步。"]),
     ],
   };
@@ -300,7 +305,7 @@ function paper(input: Record<string, string>): ToolResult {
   const scope = val(input, "scope");
   const count = Number(val(input, "count", "6")) || 6;
   const difficulty = val(input, "difficulty", "基础为主");
-  const questions = makeQuestions(subject, scope, count, difficulty !== "基础为主");
+  const questions = scalePoints(makeQuestions(subject, scope, count, difficulty !== "基础为主", val(input, "grade")));
   const total = questions.reduce((sum, item) => sum + item.points, 0);
   return {
     title: scope,
@@ -384,6 +389,8 @@ function word(input: Record<string, string>): ToolResult {
 
 function extend(input: Record<string, string>): ToolResult {
   const subject = val(input, "subject");
+  const primary = bandOf(val(input, "grade")) === "primary";
+  const math = subject === "数学" && !primary;
   const kind = guessKind(`${val(input, "reason")}\n${val(input, "wrong")}`);
   return {
     title: "举一反三",
@@ -391,11 +398,22 @@ function extend(input: Record<string, string>): ToolResult {
     summary: "三道题递进。做对第一道再做第二道。",
     sections: [
       section("错因卡片", [clip(val(input, "wrong"), 160), `当时的错法：${val(input, "reason")}`, `归类用「${kind}」。`]),
-      section("第一道 · 同构", [subject === "数学" ? "y = 3x - 5 与 y 轴的交点是多少？" : "用和原题相同的问法，只换一个无关的名词。", subject === "数学" ? "答案：(0, -5)。" : "方法与原题相同。"]),
-      section("第二道 · 变条件", [subject === "数学" ? "y = -2x + 6 的图像向哪边倾斜？" : "把一个关键条件改成相反。", subject === "数学" ? "答案：向右下，因为 k 为负。" : "要指出结论哪里跟着变。"]),
-      section("第三道 · 综合", [subject === "数学" ? "直线过 (0, -4)，x 增加 1 时 y 增加 2。写出解析式，并求 y = 0 时的 x。" : "把前两道的方法放进一个更长的问句。", subject === "数学" ? "答案：y = 2x - 4，x = 2。" : "评分看步骤是否还在。"]),
+      section("第一道 · 同构", [math ? "y = 3x - 5 与 y 轴的交点是多少？" : primary && subject === "数学" ? "3 加 2 是多少？" : "用和原题相同的问法，只换一个无关的名词。", math ? "答案：(0, -5)。" : primary && subject === "数学" ? "答案：5。" : "方法与原题相同。"]),
+      section("第二道 · 变条件", [math ? "y = -2x + 6 的图像向哪边倾斜？" : primary && subject === "数学" ? "5 加 1 是多少？" : "把一个关键条件改成相反。", math ? "答案：向右下，因为 k 为负。" : primary && subject === "数学" ? "答案：6。" : "要指出结论哪里跟着变。"]),
+      section("第三道 · 综合", [math ? "直线过 (0, -4)，x 增加 1 时 y 增加 2。写出解析式，并求 y = 0 时的 x。" : primary && subject === "数学" ? "小明有 4 个，又得到 3 个。一共有多少个？" : "把前两道的方法放进一个更长的问句。", math ? "答案：y = 2x - 4，x = 2。" : primary && subject === "数学" ? "答案：7 个。" : "评分看步骤是否还在。"]),
     ],
   };
+}
+
+function scalePoints<T extends { points: number }>(questions: T[]) {
+  const sum = questions.reduce((total, item) => total + item.points, 0);
+  if (!questions.length || sum === 100) return questions;
+  const scaled = questions.map((item) => ({ ...item, points: Math.max(1, Math.round((item.points * 100) / sum)) }));
+  const drift = 100 - scaled.reduce((total, item) => total + item.points, 0);
+  scaled[scaled.length - 1].points = Math.max(1, scaled[scaled.length - 1].points + drift);
+  const rest = 100 - scaled.slice(1).reduce((total, item) => total + item.points, 0);
+  scaled[0].points = Math.max(1, rest);
+  return scaled;
 }
 
 function analysis(input: Record<string, string>): ToolResult {

@@ -59,13 +59,13 @@ export function LoginForm() {
         </ol>
       </section>
       <form onSubmit={(event) => void submit(event)} className="space-y-4 rounded-2xl border border-border bg-card p-5">
-        <div className="flex gap-2 text-sm">
-          <button type="button" className={mode === "login" ? "font-medium text-pine" : "text-muted-foreground"} onClick={() => setMode("login")}>登录</button>
-          <button type="button" className={mode === "register" ? "font-medium text-pine" : "text-muted-foreground"} onClick={() => setMode("register")}>创建本地账号</button>
+        <div className="flex gap-2 text-base">
+          <button type="button" className={`min-h-11 px-2 ${mode === "login" ? "font-medium text-pine" : "text-muted-foreground"}`} onClick={() => setMode("login")}>登录</button>
+          <button type="button" className={`min-h-11 px-2 ${mode === "register" ? "font-medium text-pine" : "text-muted-foreground"}`} onClick={() => setMode("register")}>创建本地账号</button>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="username">账号</Label>
-          <Input id="username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
+          <Input id="username" className="h-11 text-base md:text-base" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
         </div>
         {mode === "register" ? (
           <div className="space-y-1.5">
@@ -75,13 +75,13 @@ export function LoginForm() {
         ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="password">密码</Label>
-          <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          <Input id="password" className="h-11 text-base md:text-base" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         </div>
         {error ? <p className="text-sm text-clay">{error}</p> : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" className="h-10 px-4" disabled={pending}>{pending ? "正在进入…" : mode === "login" ? "登录" : "创建并进入"}</Button>
+          <Button type="submit" className="h-11 min-h-11 px-4 text-base" disabled={pending}>{pending ? "正在进入…" : mode === "login" ? "登录" : "创建并进入"}</Button>
           {mode === "login" ? (
-            <Button type="button" variant="outline" className="h-10" onClick={() => { setUsername("demo"); setPassword("demo123"); setError(""); }}>填入演示账号</Button>
+            <Button type="button" variant="outline" className="h-11 min-h-11 text-base" onClick={() => { setUsername("demo"); setPassword("demo123"); setError(""); }}>填入演示账号</Button>
           ) : null}
         </div>
       </form>

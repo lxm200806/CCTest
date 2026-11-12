@@ -1,10 +1,14 @@
 export type MadeQuestion = { type: string; stem: string; options?: string[]; answer: string; points: number };
 
-export function makeQuestions(subject: string, topic: string, count: number, hard: boolean): MadeQuestion[] {
-  return Array.from({ length: count }, (_, index) => makeOne(subject, topic, index, hard || index >= Math.ceil(count * 0.7)));
+export function makeQuestions(subject: string, topic: string, count: number, hard: boolean, grade = ""): MadeQuestion[] {
+  const primary = grade !== "" && !grade.startsWith("初") && !grade.startsWith("高");
+  return Array.from({ length: count }, (_, index) => makeOne(subject, topic, index, hard || index >= Math.ceil(count * 0.7), primary));
 }
 
-function makeOne(subject: string, topic: string, index: number, hard: boolean): MadeQuestion {
+function makeOne(subject: string, topic: string, index: number, hard: boolean, primary: boolean): MadeQuestion {
+  if (primary && subject === "数学") return primaryMath(topic, index);
+  if (primary && subject === "语文") return primaryChinese(topic, index);
+  if (primary && subject === "英语") return primaryEnglish(topic, index);
   if (subject === "数学") return mathQuestion(topic, index, hard);
   if (subject === "语文") return chineseQuestion(topic, index, hard);
   if (subject === "英语") return englishQuestion(topic, index, hard);
@@ -15,6 +19,28 @@ function makeOne(subject: string, topic: string, index: number, hard: boolean): 
     stem: `${subject}：围绕「${topic}」先写一条已知，再写一个还需要确认的问题。`,
     answer: "已知和问题要分开。问题应该能在下一节课里被回答。",
   };
+}
+
+function primaryMath(topic: string, index: number): MadeQuestion {
+  const a = 2 + (index % 5);
+  const b = 1 + (index % 4);
+  if (index % 3 === 0) return { type: "填空", points: 4, stem: `「${topic}」。${a} 加 ${b} 是 ____。`, answer: String(a + b) };
+  if (index % 3 === 1) {
+    return { type: "选择", points: 4, stem: `「${topic}」里，哪一个更大？`, options: [`A. ${a}`, `B. ${a + b}`, `C. ${b}`], answer: `B. ${a + b}` };
+  }
+  return { type: "解答", points: 6, stem: `小明有 ${a} 个，又得到 ${b} 个。一共有多少个？`, answer: `${a + b} 个。` };
+}
+
+function primaryChinese(topic: string, index: number): MadeQuestion {
+  if (index % 2 === 0) return { type: "填空", points: 4, stem: `读一读：我们今天学「${topic}」。这句话在说：____。`, answer: `今天学「${topic}」。` };
+  return { type: "简答", points: 6, stem: `用一句话说「${topic}」。`, answer: "一句完整的话即可。" };
+}
+
+function primaryEnglish(topic: string, index: number): MadeQuestion {
+  if (index % 2 === 0) {
+    return { type: "选择", points: 4, stem: `Which word matches "${topic}"?`, options: ["A. cat", "B. book", "C. sun"], answer: "看题目里的词，选同一个意思。" };
+  }
+  return { type: "简答", points: 6, stem: `Write one short sentence with "${topic}".`, answer: "一句短话，里面有题目里的词。" };
 }
 
 function mathQuestion(topic: string, index: number, hard: boolean): MadeQuestion {

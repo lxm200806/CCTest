@@ -63,7 +63,8 @@ function OfficeButton({ recordId, kind }: { recordId: string; kind: "pptx" | "do
       </Button>
       {state === "error" ? (
         <span className="text-sm leading-6 text-clay" role="alert">
-          {message} <button type="button" className="underline" onClick={() => void download()}>再试一次</button>
+          {message}{" "}
+          <Button type="button" variant="outline" className="h-11 min-h-11" onClick={() => void download()}>再试一次</Button>
         </span>
       ) : null}
     </div>

@@ -150,6 +150,12 @@ function mergeQuestions(result: ToolResult, raw: Raw, count: number) {
     const explanation = text(item.explanation);
     return `${index + 1}. ${text(item.answer)}${explanation ? ` ${explanation}` : ""}`;
   });
+  const points = questions.map((item) => Number(item.points) || 0);
+  if (points.some((point) => point <= 0)) throw new ProviderError("有题目没有正的分值。点数未扣除。", { parseError: true });
+  const pointSum = points.reduce((sum, point) => sum + point, 0);
+  if (pointSum < 60 || pointSum > 140) {
+    throw new ProviderError(`试卷分值合计 ${pointSum}，需要接近 100。点数未扣除。`, { parseError: true });
+  }
   result.sections = [
     ...result.sections.filter((item) => !/试题|参考答案/.test(item.heading)),
     section("试题", stems),
@@ -282,6 +288,10 @@ function documentFrom(raw: Raw, result: ToolResult, input: Record<string, string
   if (!mentionsAny(val(input, "source"), body.join("\n"))) {
     throw new ProviderError("排版没有保留用户正文中的内容。点数未扣除。", { parseError: true });
   }
+  const missingNumbers = [...new Set(val(input, "source").match(/\d{2,}/g) ?? [])].filter((number) => !body.join("\n").includes(number));
+  if (missingNumbers.length) {
+    throw new ProviderError(`排版改掉了原文数字 ${missingNumbers.slice(0, 3).join("、")}。点数未扣除。`, { parseError: true });
+  }
   const layout = val(input, "layout") === "双栏" ? "columns-2" : "";
   const html = body.map((line) => `<p>${esc(line)}</p>`).join("");
   return `<article class="study-sheet"><p class="meta">${esc(val(input, "grade"))} · ${esc(val(input, "subject"))} · ${esc(val(input, "docType"))}</p><h1>${esc(result.title)}</h1><div class="${layout}">${html}</div><p class="foot">学习工作台 · 可打印</p></article>`;
@@ -303,12 +313,71 @@ function assertUsable(tool: ToolDef, input: Record<string, string>, result: Tool
       throw new ProviderError("课时分钟数无效。点数未扣除。", { parseError: true });
     }
     assertScheduleMatches(result.sections, requested);
+    if (!result.sections.some((item) => /检查/.test(item.heading))) {
+      throw new ProviderError("课堂脚本缺少检查题。点数未扣除。", { parseError: true });
+    }
   }
+  if (tool.id === "ai-prep") assertScheduleMatches(result.sections, 40);
+  if (tool.id === "ai-handout") assertAnswerAfterPractice(result.sections);
+  if (tool.id === "ai-teaching-aid") assertAidPages(result.sections, Number(val(input, "pages")) || 0);
+  if ((tool.id === "ai-preview" || tool.id === "ai-paper") && val(input, "minutes") && !blob.includes(val(input, "minutes"))) {
+    throw new ProviderError("结果没有写出用户选择的分钟数。点数未扣除。", { parseError: true });
+  }
+  if (tool.id === "ai-extend") requireCompactSlice(val(input, "reason"), blob, "错法");
+  if (tool.id === "ai-analysis") assertScoreBound(input, blob);
+  if (tool.id === "ai-score-plan") assertPlanPace(input, blob);
   if (tool.id === "ai-explain") {
     if (!mentionsAny(val(input, "question"), blob)) {
       throw new ProviderError("讲题稿没有对照原题。点数未扣除。", { parseError: true });
     }
   }
+}
+
+function assertAnswerAfterPractice(sections: Section[]) {
+  const practice = sections.findIndex((item) => /练习/.test(item.heading));
+  const answer = sections.findIndex((item) => /答案/.test(item.heading));
+  if (practice < 0 || answer < 0 || answer < practice) {
+    throw new ProviderError("讲义需要先有练习，再有参考答案。点数未扣除。", { parseError: true });
+  }
+}
+
+function assertAidPages(sections: Section[], pages: number) {
+  const table = sections.find((item) => /分页/.test(item.heading) && item.table)?.table;
+  if (!table) throw new ProviderError("教辅缺少分页表。点数未扣除。", { parseError: true });
+  const rows = table.rows.filter((row) => !/合计|总计/.test(row.join("")));
+  if (rows.length !== pages) throw new ProviderError(`教辅需要 ${pages} 页，分页表有 ${rows.length} 行。点数未扣除。`, { parseError: true });
+  if (pages === 1 && rows.some((row) => /练习/.test(row.join("")))) {
+    throw new ProviderError("只要 1 页时不要编练习页。点数未扣除。", { parseError: true });
+  }
+}
+
+function assertScoreBound(input: Record<string, string>, blob: string) {
+  const score = Number(val(input, "score"));
+  const total = Number(val(input, "total"));
+  if (Number.isFinite(score) && Number.isFinite(total) && total > 0 && score > total && !/高于|异常|核对|填反/.test(blob)) {
+    throw new ProviderError("得分高于满分，但分析没有指出数据异常。点数未扣除。", { parseError: true });
+  }
+}
+
+function assertPlanPace(input: Record<string, string>, blob: string) {
+  const recent = Number(val(input, "recent"));
+  const target = Number(val(input, "target"));
+  const weeks = Number(val(input, "weeks"));
+  if (!Number.isFinite(recent) || !Number.isFinite(target) || !Number.isFinite(weeks) || weeks <= 0) return;
+  if ((target - recent) / weeks > 8 && !/改近|不现实|太多|超过/.test(blob)) {
+    throw new ProviderError("每周要提高的分数超过 8 分，但计划没有建议把目标改近。点数未扣除。", { parseError: true });
+  }
+}
+
+function requireCompactSlice(source: string, blob: string, label: string) {
+  const compact = source.replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
+  if (compact.length < 4) return;
+  const size = Math.min(6, compact.length);
+  const haystack = blob.replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
+  for (let index = 0; index + size <= compact.length; index += 1) {
+    if (haystack.includes(compact.slice(index, index + size))) return;
+  }
+  throw new ProviderError(`${label}没有出现在结果里。点数未扣除。`, { parseError: true });
 }
 
 function fitLabels(items: string[]) {

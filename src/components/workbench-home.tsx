@@ -53,12 +53,12 @@ export function WorkbenchHome() {
           <h1 className="mt-1 text-3xl font-semibold">工作台</h1>
           <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">四个组，点进去就能生成。常用的五张卡做了标记。余额 {user.credits} 点。生成成功才扣卡片上的点数，失败不扣。</p>
         </div>
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索工具" className="h-10 w-full sm:w-56" aria-label="搜索工具" />
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索工具" className="h-11 w-full text-base md:text-base sm:w-56" aria-label="搜索工具" />
       </div>
       <Tabs value={group} onValueChange={(value) => setGroup(value as "all" | ToolGroupId)} className="mt-6">
         <TabsList className="h-auto flex-wrap">
-          <TabsTrigger value="all">全部</TabsTrigger>
-          {GROUPS.map((item) => <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>)}
+          <TabsTrigger value="all" className="min-h-11 px-3 text-base">全部</TabsTrigger>
+          {GROUPS.map((item) => <TabsTrigger key={item.id} value={item.id} className="min-h-11 px-3 text-base">{item.label}</TabsTrigger>)}
         </TabsList>
         <TabsContent value={group} className="mt-4">
           {visible.length === 0 ? (
@@ -72,14 +72,14 @@ export function WorkbenchHome() {
                   <Link key={tool.id} href={`/workbench/${tool.id}`} className="flex min-h-40 flex-col rounded-2xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-pine/40">
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex size-9 items-center justify-center rounded-lg bg-secondary text-pine"><Icon className="size-4" /></span>
-                      <span className="text-xs text-muted-foreground">{tool.cost} 点</span>
+                      <span className="text-sm text-muted-foreground">{tool.cost} 点</span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
                       <h2 className="text-lg font-semibold">{tool.name}</h2>
                       {tool.featured ? <Badge className="bg-clay text-white">常用</Badge> : null}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{groupName}</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{tool.blurb}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{groupName}</p>
+                    <p className="mt-2 text-base leading-7 text-muted-foreground">{tool.blurb}</p>
                   </Link>
                 );
               })}

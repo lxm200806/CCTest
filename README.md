@@ -101,6 +101,8 @@ sudo apt-get install tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-eng
 
 AIPPT 的已保存结果可以下载真正的 `.pptx`，AIWORD 可以下载真正的 `.docx`。下载只读取当前账号自己的那一次生成，不调用模型，也不扣点。中文使用「微软雅黑」，没有这款字体时由系统回退。一页放不下的要点会拆到下一页，而不是把字缩到看不清。打印和 HTML 下载仍然保留。
 
+各工具的结构检查写在 [docs/tool-acceptance.md](docs/tool-acceptance.md)。这些是夹具和本地示例，不是在线模型已经教对了。
+
 检查用的是确定性夹具，不调用在线模型：
 
 ```bash

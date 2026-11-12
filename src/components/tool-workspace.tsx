@@ -269,6 +269,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
                 {field.type === "select" ? (
                   <Select
                     value={input[field.name] ?? ""}
+                    items={Object.fromEntries((field.options ?? []).map((option) => [option.value, option.label]))}
                     onValueChange={(value) => {
                       if (!value) return;
                       setInput((current) => ({ ...current, [field.name]: value }));
@@ -285,7 +286,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
                       <SelectValue placeholder="请选择" />
                     </SelectTrigger>
                     <SelectContent>
-                      {field.options?.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                      {field.options?.map((option) => <SelectItem key={option.value} value={option.value} className="min-h-11 py-2 text-base">{option.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 ) : field.type === "textarea" ? (
@@ -327,7 +328,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
                   />
                 )}
                 {field.hint ? <p id={`${field.name}-hint`} className="text-sm leading-6 text-muted-foreground">{field.hint}</p> : null}
-                {message ? <p id={`${field.name}-error`} className="text-sm leading-6 text-clay">{message}</p> : null}
+                {message ? <p id={`${field.name}-error`} className="text-sm leading-6 text-clay" role="alert">{message}</p> : null}
                 {field.type === "file" && input[field.name] ? <p className="text-sm text-muted-foreground">已选 {input[field.name]}。图片本身不会留在草稿里。</p> : null}
                 {field.type === "file" && scan && tool.ocrTargets?.length ? (
                   <OcrPanel
