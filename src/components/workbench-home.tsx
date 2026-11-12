@@ -51,7 +51,7 @@ export function WorkbenchHome() {
         <div>
           <p className="text-sm text-pine">工具台 · 15 个入口</p>
           <h1 className="mt-1 text-3xl font-semibold">工作台</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">四个组，点进去就能生成。常用的五张卡做了标记。余额 {user.credits} 点，每次生成会扣掉卡片上的点数。</p>
+          <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground">四个组，点进去就能生成。常用的五张卡做了标记。余额 {user.credits} 点。生成成功才扣卡片上的点数，失败不扣。</p>
         </div>
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索工具" className="h-10 w-full sm:w-56" aria-label="搜索工具" />
       </div>

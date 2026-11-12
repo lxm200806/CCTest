@@ -1,10 +1,12 @@
 "use client";
 
-import { Download, FileJson, FileText } from "lucide-react";
+import { useState } from "react";
+import { Copy, Download, FileJson, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadName, sourceLabel, toHtmlDocument, toMarkdown } from "@/lib/format";
 import { MOCK_NOTICE } from "@/lib/ai/notice";
 import { formatStamp } from "@/lib/dates";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { PublicGeneration } from "@/lib/types";
 
 function saveFile(filename: string, content: string, mime: string) {
@@ -17,70 +19,162 @@ function saveFile(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+function printHtml(html: string) {
+  const frame = document.createElement("iframe");
+  frame.title = "打印预览";
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  if (!doc || !frame.contentWindow) {
+    frame.remove();
+    return false;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  frame.contentWindow.focus();
+  frame.contentWindow.print();
+  window.setTimeout(() => frame.remove(), 1000);
+  return true;
+}
+
 export function ResultView({
   record,
   pending,
   error,
   empty,
   live = null,
+  cost,
+  loadedPast = false,
+  balanceNote = null,
+  onRetry,
+  onRestoreInput,
 }: {
   record: PublicGeneration | null;
   pending: boolean;
   error: string;
   empty: string;
   live?: boolean | null;
+  cost?: number;
+  loadedPast?: boolean;
+  balanceNote?: number | null;
+  onRetry?: () => void;
+  onRestoreInput?: (input: Record<string, string>) => void;
 }) {
-  if (pending) {
-    return (
-      <div className="space-y-3" aria-live="polite">
-        <p className="text-sm text-pine">{live === false ? "正在整理本地示例…" : "正在请模型按这道材料生成…"}</p>
-        <div className="h-6 w-2/3 animate-pulse rounded bg-secondary" />
-        <div className="h-24 animate-pulse rounded-xl bg-secondary" />
-      </div>
-    );
+  const [copied, setCopied] = useState("");
+  const pendingText = live === false ? "正在生成本地示例，没有调用模型。成功后才会扣点。" : "正在生成。成功后才会扣点。";
+
+  async function copyMarkdown(current: PublicGeneration) {
+    const markdown = toMarkdown(current);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied("已复制 Markdown");
+    } catch {
+      setCopied("没有复制成功，可以改用 Markdown 下载。");
+    }
+    window.setTimeout(() => setCopied(""), 2500);
   }
-  if (error) {
-    return <div className="rounded-xl border border-clay/30 bg-accent px-4 py-4 text-sm leading-6 text-clay" role="alert">{error}</div>;
-  }
-  if (!record) {
-    return (
-      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-sm leading-7 text-muted-foreground">
-        <p className="font-medium text-foreground">结果会显示在这里</p>
-        <p className="mt-2">{empty}</p>
-        <p className="mt-2">可以下载 Markdown、JSON，需要打印时下载 HTML。</p>
-      </div>
-    );
-  }
+
+  return (
+    <div className="space-y-5">
+      {pending ? (
+        <div className="rounded-xl border border-border bg-secondary/60 px-4 py-4" role="status" aria-live="polite">
+          <p className="text-base leading-7 text-pine">{pendingText}</p>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded-xl border border-clay/30 bg-accent px-4 py-4 text-base leading-7 text-clay" role="alert">
+          <p>{error}</p>
+          {onRetry ? (
+            <Button type="button" variant="outline" className="mt-3 h-11 min-h-11" disabled={pending} onClick={onRetry}>
+              再试一次
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {!record && !pending ? (
+        <div className="rounded-xl border border-dashed border-border px-4 py-10 text-base leading-7 text-muted-foreground">
+          <p className="font-medium text-foreground">结果会显示在这里</p>
+          <p className="mt-2">{empty}</p>
+          <p className="mt-2">可以复制 Markdown，或下载 Markdown、JSON、HTML。打印使用 HTML，这一阶段不导出 PPTX 或 DOCX。图片不会被识别。</p>
+        </div>
+      ) : null}
+      {record ? <ResultBody record={record} loadedPast={loadedPast} cost={cost} balanceNote={balanceNote} copied={copied} onCopy={() => void copyMarkdown(record)} onPrint={() => printHtml(toHtmlDocument(record))} onRestoreInput={onRestoreInput} /> : null}
+    </div>
+  );
+}
+
+function ResultBody({
+  record,
+  loadedPast,
+  cost,
+  balanceNote,
+  copied,
+  onCopy,
+  onPrint,
+  onRestoreInput,
+}: {
+  record: PublicGeneration;
+  loadedPast: boolean;
+  cost?: number;
+  balanceNote: number | null;
+  copied: string;
+  onCopy: () => void;
+  onPrint: () => void;
+  onRestoreInput?: (input: Record<string, string>) => void;
+}) {
   const { result } = record;
   return (
     <div className="space-y-5">
+      {loadedPast ? (
+        <div className="rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          <p>这是本机保存的上一次结果（{formatStamp(record.createdAt)}，{sourceLabel(record.source)}）。打开页面不会再次扣点。</p>
+          {onRestoreInput ? (
+            <Button type="button" variant="outline" className="mt-2 h-11 min-h-11" onClick={() => onRestoreInput(record.input)}>
+              把上次的输入填回表单
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs text-muted-foreground">{sourceLabel(record.source)} · {formatStamp(record.createdAt)}</p>
-          {record.source === "mock" ? <p className="mt-1 text-xs leading-5 text-clay">{MOCK_NOTICE}</p> : null}
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{sourceLabel(record.source)} · {formatStamp(record.createdAt)}</p>
+          {record.source === "mock" ? <p className="mt-1 text-sm leading-6 text-clay">{MOCK_NOTICE}</p> : null}
+          {!loadedPast && cost ? <p className="mt-1 text-sm leading-6 text-foreground">这次已扣 {cost} 点{balanceNote !== null ? `，余额 ${balanceNote}` : ""}。</p> : null}
           <h2 className="mt-1 text-xl font-semibold leading-snug">{result.title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{result.subtitle}</p>
+          <p className="mt-1 text-base text-muted-foreground">{result.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => saveFile(downloadName(record.toolId, "md"), toMarkdown(record), "text/markdown")}><FileText /> Markdown</Button>
-          <Button variant="outline" size="sm" onClick={() => saveFile(downloadName(record.toolId, "json"), JSON.stringify(record, null, 2), "application/json")}><FileJson /> JSON</Button>
-          <Button variant="outline" size="sm" onClick={() => saveFile(downloadName(record.toolId, "html"), toHtmlDocument(record), "text/html")}><Download /> HTML</Button>
+          <Button variant="outline" className="h-11 min-h-11" onClick={onCopy}><Copy /> 复制</Button>
+          <Button variant="outline" className="h-11 min-h-11" onClick={onPrint}><Printer /> 打印</Button>
+          <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "md"), toMarkdown(record), "text/markdown")}><FileText /> Markdown</Button>
+          <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "json"), JSON.stringify(record, null, 2), "application/json")}><FileJson /> JSON</Button>
+          <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "html"), toHtmlDocument(record), "text/html")}><Download /> HTML</Button>
         </div>
       </div>
-      <p className="text-sm leading-7">{result.summary}</p>
-      {result.sections.map((section) => (
-        <section key={section.heading} className="space-y-2">
-          <h3 className="text-base font-semibold">{section.heading}</h3>
-          {section.paragraphs?.map((paragraph) => <p key={paragraph} className="whitespace-pre-wrap text-sm leading-7">{paragraph}</p>)}
-          {section.bullets ? <ul className="list-disc space-y-1 pl-5 text-sm leading-7">{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
+      {copied ? <p className="text-sm text-pine" role="status">{copied}</p> : null}
+      <p className="text-sm leading-6 text-muted-foreground">复制的是 Markdown。打印和 HTML 下载是同一份页面。这一阶段不导出 PPTX 或 DOCX，图片也不会被识别。</p>
+      <p className="text-base leading-7">{result.summary}</p>
+      {result.sections.map((section, sectionIndex) => (
+        <section key={`${section.heading}-${sectionIndex}`} className="space-y-2">
+          <h3 className="text-lg font-semibold">{section.heading}</h3>
+          {section.paragraphs?.map((paragraph, index) => <p key={`${sectionIndex}-p-${index}`} className="whitespace-pre-wrap text-base leading-7">{paragraph}</p>)}
+          {section.bullets ? <ul className="list-disc space-y-1 pl-5 text-base leading-7">{section.bullets.map((bullet, index) => <li key={`${sectionIndex}-b-${index}`}>{bullet}</li>)}</ul> : null}
           {section.table ? (
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[28rem] border-collapse text-sm">
-                <thead className="bg-secondary"><tr>{section.table.headers.map((header) => <th key={header} className="px-3 py-2 text-left font-medium">{header}</th>)}</tr></thead>
+              <table className="w-full border-collapse text-base">
+                <thead className="bg-secondary">
+                  <tr>{section.table.headers.map((header, index) => <th key={`${sectionIndex}-h-${index}`} className="px-3 py-2 text-left font-medium">{header}</th>)}</tr>
+                </thead>
                 <tbody>
                   {section.table.rows.map((row, index) => (
-                    <tr key={`${section.heading}-${index}`} className="border-t border-border">
-                      {row.map((cell, cellIndex) => <td key={`${index}-${cellIndex}`} className="px-3 py-2 align-top">{cell}</td>)}
+                    <tr key={`${sectionIndex}-r-${index}`} className="border-t border-border">
+                      {row.map((cell, cellIndex) => <td key={`${sectionIndex}-${index}-${cellIndex}`} className="px-3 py-2 align-top break-words">{cell}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -90,21 +184,21 @@ export function ResultView({
         </section>
       ))}
       {result.diagramSvg ? (
-        <section>
-          <h3 className="mb-2 text-base font-semibold">图示</h3>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card p-2" dangerouslySetInnerHTML={{ __html: result.diagramSvg }} />
+        <section aria-label="图示">
+          <h3 className="mb-2 text-lg font-semibold">图示</h3>
+          <div className="diagram-frame overflow-x-auto rounded-xl border border-border bg-card p-2" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(result.diagramSvg) }} />
         </section>
       ) : null}
       {result.slides?.length ? (
         <section>
-          <h3 className="mb-2 text-base font-semibold">分页讲稿</h3>
+          <h3 className="mb-2 text-lg font-semibold">分页讲稿</h3>
           <div className="grid gap-3 md:grid-cols-2">
             {result.slides.map((slide, index) => (
               <article key={`${slide.title}-${index}`} className="rounded-xl border border-border bg-card p-4">
-                <p className="text-xs text-clay">{slide.kicker} · {index + 1}</p>
-                <h4 className="mt-1 font-semibold">{slide.title}</h4>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-6">{slide.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">讲者备注：{slide.notes}</p>
+                <p className="text-sm text-clay">{slide.kicker} · {index + 1}</p>
+                <h4 className="mt-1 text-lg font-semibold">{slide.title}</h4>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-base leading-7">{slide.bullets.map((bullet, bulletIndex) => <li key={`${index}-${bulletIndex}`}>{bullet}</li>)}</ul>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">讲者备注：{slide.notes}</p>
               </article>
             ))}
           </div>
@@ -112,8 +206,8 @@ export function ResultView({
       ) : null}
       {result.docHtml ? (
         <section>
-          <h3 className="mb-2 text-base font-semibold">版面预览</h3>
-          <div dangerouslySetInnerHTML={{ __html: result.docHtml }} />
+          <h3 className="mb-2 text-lg font-semibold">版面预览</h3>
+          <div dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(result.docHtml) }} />
         </section>
       ) : null}
     </div>

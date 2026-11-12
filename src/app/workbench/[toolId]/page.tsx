@@ -14,5 +14,5 @@ export async function generateMetadata({ params }: { params: Promise<{ toolId: s
 export default async function ToolPage({ params }: { params: Promise<{ toolId: string }> }) {
   const { toolId } = await params;
   if (!getTool(toolId)) notFound();
-  return <ToolWorkspace toolId={toolId} />;
+  return <ToolWorkspace key={toolId} toolId={toolId} />;
 }

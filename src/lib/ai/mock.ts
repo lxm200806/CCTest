@@ -11,12 +11,15 @@ import {
   methodLine,
   num,
   parseLinear,
+  resolveFunctionGraph,
   section,
   timelineSvg,
   treeSvg,
+  unsupportedGraphSvg,
   val,
   voice,
 } from "@/lib/ai/shared";
+import { trimNum } from "@/lib/ai/formula";
 import type { ToolResult } from "@/lib/types";
 
 const handlers: Record<string, (input: Record<string, string>) => ToolResult> = {
@@ -208,28 +211,45 @@ function ppt(input: Record<string, string>): ToolResult {
 function visualize(input: Record<string, string>): ToolResult {
   const concept = val(input, "concept");
   const visual = val(input, "visual", "流程图");
-  const falling = /负|减小|下降|反比|向右下/.test(concept);
-  const diagram =
-    visual === "函数图像"
-      ? graphSvg(concept, falling)
-      : visual === "对比表"
-        ? compareSvg(concept, "先看", "再判断", [
-            ["方向", falling ? "向右下" : "向右上", "先别读具体数字"],
-            ["条件", "写在图旁边", "没用到的条件画圈"],
-            ["结论", "用一句话", "不写第二层推论"],
-          ])
-        : visual === "结构图"
-          ? treeSvg(concept, ["定义", "例子", "易错", "练习"])
-          : visual === "时间线"
-            ? timelineSvg(concept, ["条件", "过程", "现象", "结论"])
-            : flowSvg(concept, ["看条件", "找关系", "写一步", "说结论"]);
+  const verdict = resolveFunctionGraph(concept);
+  const falling = verdict.status === "exact" ? verdict.fn.k < 0 : false;
+  let diagram: string;
+  let reading: string;
+  if (visual === "函数图像") {
+    if (verdict.status === "exact") {
+      const { k, b } = verdict.fn;
+      const root = k === 0 ? null : -b / k;
+      diagram = graphSvg(concept, verdict.fn);
+      reading = `这条直线是 ${verdict.expression}。斜率 k = ${trimNum(k)}，与 y 轴交于 (0, ${trimNum(b)})。${k > 0 ? "x 增大时 y 增大。" : k < 0 ? "x 增大时 y 减小。" : "这是一条水平线。"}`;
+      if (root !== null) reading += `与 x 轴交于 (${trimNum(root)}, 0)。`;
+    } else {
+      diagram = unsupportedGraphSvg(concept, verdict.reason);
+      reading = verdict.reason;
+    }
+  } else if (visual === "对比表") {
+    diagram = compareSvg(concept, "先看", "再判断", [
+      ["方向", falling ? "向右下" : "先看解析式里的 k", "没有具体解析式就不要猜方向"],
+      ["条件", "写在图旁边", "没用到的条件画圈"],
+      ["结论", "用一句话", "不写第二层推论"],
+    ]);
+    reading = "按标注的顺序读，一次只停一处。";
+  } else if (visual === "结构图") {
+    diagram = treeSvg(concept, ["定义", "例子", "易错", "练习"]);
+    reading = "按标注的顺序读，一次只停一处。";
+  } else if (visual === "时间线") {
+    diagram = timelineSvg(concept, ["条件", "过程", "现象", "结论"]);
+    reading = "按标注的顺序读，一次只停一处。";
+  } else {
+    diagram = flowSvg(concept, ["看条件", "找关系", "写一步", "说结论"]);
+    reading = "按标注的顺序读，一次只停一处。";
+  }
   return {
     title: concept,
     subtitle: `${val(input, "grade")} ${val(input, "subject")} · ${visual}`,
-    summary: "先看图的阅读顺序，再看字。坐标和措辞可以按课本改。",
+    summary: visual === "函数图像" && verdict.status !== "exact" ? "这张图没有把概念画成一条确定的直线。" : "先看图的阅读顺序，再看字。坐标按解析式计算，措辞可以按课本改。",
     diagramSvg: diagram,
     sections: [
-      section("怎么读这张图", [visual === "函数图像" ? (falling ? "线向右下：横轴增加时纵轴减少。" : "线向右上：横轴增加时纵轴增加。") : "按标注的顺序读，一次只停一处。"]),
+      section("怎么读这张图", [reading]),
       section("讲的时候停在哪", [methodLine(val(input, "subject"), concept)]),
     ],
   };
@@ -303,13 +323,13 @@ function grade(input: Record<string, string>): ToolResult {
     score = Math.min(score, 74);
   }
   if (/x\s*=\s*2/.test(answer)) notes.push("令 y = 0 得到 x = 2，这一步是对的。");
-  if (!notes.length) notes.push(`从作答里能看到：「${clip(answer, 42)}」。演示评分看步骤有没有写出来。`);
+  if (!notes.length) notes.push(`从作答里能看到：「${clip(answer, 42)}」。分数只看文字里有没有把理由写出来。`);
   const fileName = val(input, "attachment");
   if (fileName) notes.push(`附件 ${fileName} 只作记录。图片不识别画面。`);
   const kind = notes.some((note) => note.includes("纵截距")) ? "计算" : guessKind(answer);
   return {
     title: "作业批改",
-    subtitle: `${val(input, "grade")} ${val(input, "subject")} · 演示评分 ${score}/100`,
+    subtitle: `${val(input, "grade")} ${val(input, "subject")} · 文字评分 ${score}/100`,
     summary: "这不是阅卷扫描。分数依据文字是否把理由写出来。",
     sections: [
       section("对照要求", [`题目要求：${clip(prompt, 120)}`, `作答摘要：${clip(answer, 120)}`]),

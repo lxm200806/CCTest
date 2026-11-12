@@ -60,7 +60,14 @@ export const TOOLS: ToolDef[] = [
       gradeField,
       subjectField,
       { name: "topic", label: "课题", type: "text", required: true, placeholder: "例如：一次函数的图像与性质" },
-      { name: "duration", label: "课时", type: "select", required: true, options: choices(["20", "40", "45"]) },
+      {
+        name: "duration",
+        label: "课时",
+        type: "select",
+        required: true,
+        hint: "各教学段的分钟数相加必须等于这个课时。合计行不会再加一次，其他表里的数字不算课时。",
+        options: choices(["20", "40", "45"]),
+      },
       { name: "style", label: "课型", type: "select", required: true, options: choices(["讲解型", "探究型", "复习型"]) },
     ],
     example: { grade: "初二", subject: "数学", topic: "一次函数的图像与性质", duration: "40", style: "讲解型" },
@@ -118,6 +125,7 @@ export const TOOLS: ToolDef[] = [
         label: "页数",
         type: "select",
         required: true,
+        hint: "下载的是可打印 HTML，不是排版软件源文件。",
         options: [
           { value: "1", label: "1 页" },
           { value: "2", label: "2 页" },
@@ -168,7 +176,7 @@ export const TOOLS: ToolDef[] = [
       gradeField,
       subjectField,
       { name: "topic", label: "主题", type: "text", required: true, placeholder: "这一叠幻灯片要讲什么" },
-      { name: "slides", label: "页数", type: "select", required: true, options: choices(["8", "12", "16"]) },
+      { name: "slides", label: "页数", type: "select", required: true, hint: "得到的是分页讲稿和 HTML，不是 .pptx 文件。", options: choices(["8", "12", "16"]) },
       { name: "audience", label: "听众", type: "select", required: true, options: choices(["学生", "家长会", "教研组"]) },
     ],
     example: { grade: "初二", subject: "数学", topic: "一次函数图像怎么读", slides: "8", audience: "学生" },
@@ -186,10 +194,17 @@ export const TOOLS: ToolDef[] = [
     fields: [
       gradeField,
       subjectField,
-      { name: "concept", label: "要画的概念", type: "text", required: true, placeholder: "例如：一次函数 y=kx+b 的图像" },
+      {
+        name: "concept",
+        label: "要画的概念",
+        type: "text",
+        required: true,
+        placeholder: "例如：一次函数 y=2x-4 的图像",
+        hint: "函数图像请写具体解析式，例如 y=2x-4。y=kx+b、二次函数或有歧义的式子不会被画成一条确定的直线。",
+      },
       { name: "visual", label: "图的类型", type: "select", required: true, options: choices(["流程图", "对比表", "函数图像", "结构图", "时间线"]) },
     ],
-    example: { grade: "初二", subject: "数学", concept: "一次函数 y=kx+b 的图像", visual: "函数图像" },
+    example: { grade: "初二", subject: "数学", concept: "一次函数 y=2x-4 的图像", visual: "函数图像" },
   },
   {
     id: "ai-explain",
@@ -218,7 +233,7 @@ export const TOOLS: ToolDef[] = [
     name: "AI组卷",
     group: "practice",
     blurb: "按范围组一套带答案和评分的卷",
-    detail: "生成小题、分值和参考答案。演示环境按题干里的数字把答案算稳，方便直接用来限时练。",
+    detail: "生成小题、分值和参考答案。答案按题干里的数字计算，方便直接用来限时练。",
     cost: 2,
     featured: true,
     empty: "生成后先是试卷，参考答案放在后面，避免做的时候瞄到。",
@@ -248,7 +263,7 @@ export const TOOLS: ToolDef[] = [
     name: "AI作业批改",
     group: "practice",
     blurb: "对照要求批改，并归到一种错因",
-    detail: "根据学生写下的文字给演示评分和改写建议。它不识别照片里的字，图片只记录文件名。",
+    detail: "根据学生写下的文字给评分和改写建议。不识别照片里的字，图片只记录文件名。",
     cost: 1,
     featured: true,
     empty: "生成后有分数、引用学生原句的批注、一个错因，以及改写示例。",
@@ -258,7 +273,7 @@ export const TOOLS: ToolDef[] = [
       subjectField,
       { name: "prompt", label: "题目要求", type: "textarea", required: true, rows: 4, placeholder: "老师或家长布置了什么" },
       { name: "answer", label: "学生作答", type: "textarea", required: true, rows: 6, placeholder: "把学生写的文字贴进来" },
-      { name: "attachment", label: "附件（可选）", type: "file", hint: "文本会读入；图片只保留文件名，演示环境不识别画面。" },
+      { name: "attachment", label: "附件（可选）", type: "file", hint: "文本会读入。图片和扫描件不会被识别，只保留文件名，请把文字贴到作答里。" },
     ],
     example: {
       grade: "初二",
@@ -306,7 +321,7 @@ export const TOOLS: ToolDef[] = [
       subjectField,
       { name: "docType", label: "文稿类型", type: "select", required: true, options: choices(["试卷", "讲义", "学情周报", "家长通知"]) },
       { name: "title", label: "标题", type: "text", required: true, placeholder: "印在页首的标题" },
-      { name: "source", label: "正文材料", type: "textarea", required: true, rows: 7, placeholder: "一段一段贴上。空行会分成新段落。" },
+      { name: "source", label: "正文材料", type: "textarea", required: true, rows: 7, placeholder: "一段一段贴上。空行会分成新段落。", hint: "可下载 HTML 后用浏览器打印。这一阶段不导出 .docx。" },
       { name: "layout", label: "栏式", type: "select", required: true, options: choices(["单栏", "双栏"]) },
     ],
     example: {
@@ -353,7 +368,7 @@ export const TOOLS: ToolDef[] = [
       gradeField,
       subjectField,
       { name: "paper", label: "试卷名称", type: "text", required: true, placeholder: "例如：期中数学" },
-      { name: "score", label: "得分", type: "text", required: true, numeric: true, placeholder: "78" },
+      { name: "score", label: "得分", type: "text", required: true, numeric: true, placeholder: "78", hint: "填数字。错题表只出现一次。" },
       { name: "total", label: "满分", type: "text", required: true, numeric: true, placeholder: "100" },
       { name: "usedMinutes", label: "用时（分钟）", type: "text", required: true, numeric: true, placeholder: "90" },
       {
@@ -391,7 +406,7 @@ export const TOOLS: ToolDef[] = [
       { name: "recent", label: "最近一次分数", type: "text", required: true, numeric: true, placeholder: "78" },
       { name: "target", label: "目标分", type: "text", required: true, numeric: true, placeholder: "88" },
       { name: "weeks", label: "周数", type: "select", required: true, options: choices(["2", "4", "6", "8"]) },
-      { name: "weak", label: "薄弱点", type: "textarea", required: true, rows: 4, placeholder: "一行一个，最多写三个" },
+      { name: "weak", label: "薄弱点", type: "textarea", required: true, rows: 4, placeholder: "一行一个，最多写三个", hint: "一行一个。计划只覆盖这里写下的点。" },
     ],
     example: {
       grade: "初二",
@@ -412,20 +427,34 @@ export function groupLabel(group: ToolGroupId) {
   return GROUPS.find((item) => item.id === group)?.label ?? group;
 }
 
+export function fieldIssues(tool: ToolDef, raw: unknown) {
+  if (!raw || typeof raw !== "object") return [{ name: "", message: "缺少输入" }];
+  const src = raw as Record<string, unknown>;
+  const issues: { name: string; message: string }[] = [];
+  for (const field of tool.fields) {
+    const value = src[field.name];
+    const text = typeof value === "string" ? value.trim() : "";
+    if (field.required && !text) {
+      issues.push({ name: field.name, message: `请填写${field.label}` });
+      continue;
+    }
+    if (text.length > 8000) issues.push({ name: field.name, message: `${field.label}太长了，请控制在 8000 字以内` });
+    if (field.type === "select" && text && field.options && !field.options.some((option) => option.value === text)) {
+      issues.push({ name: field.name, message: `${field.label}不在可选范围内` });
+    }
+    if (field.numeric && text && !Number.isFinite(Number(text))) issues.push({ name: field.name, message: `${field.label}请填数字` });
+  }
+  return issues;
+}
+
 export function normalizeInput(tool: ToolDef, raw: unknown): { ok: true; input: Record<string, string> } | { ok: false; error: string } {
-  if (!raw || typeof raw !== "object") return { ok: false, error: "缺少输入" };
+  const issues = fieldIssues(tool, raw);
+  if (issues.length) return { ok: false, error: issues[0]?.message || "缺少输入" };
   const src = raw as Record<string, unknown>;
   const input: Record<string, string> = {};
   for (const field of tool.fields) {
     const value = src[field.name];
-    const text = typeof value === "string" ? value.trim() : "";
-    if (field.required && !text) return { ok: false, error: `请填写${field.label}` };
-    if (text.length > 8000) return { ok: false, error: `${field.label}太长了，请控制在 8000 字以内` };
-    if (field.type === "select" && text && field.options && !field.options.some((option) => option.value === text)) {
-      return { ok: false, error: `${field.label}不在可选范围内` };
-    }
-    if (field.numeric && text && !Number.isFinite(Number(text))) return { ok: false, error: `${field.label}请填数字` };
-    input[field.name] = text;
+    input[field.name] = typeof value === "string" ? value.trim() : "";
     if (field.type === "file") {
       const extra = src[`${field.name}Text`];
       input[`${field.name}Text`] = typeof extra === "string" ? extra.slice(0, 8000) : "";

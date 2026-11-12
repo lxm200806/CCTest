@@ -1,3 +1,4 @@
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { GenerationRecord, ToolResult } from "@/lib/types";
 
 export function sourceLabel(source: string) {
@@ -72,8 +73,8 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
         )
         .join("")}</section>`
     : "";
-  const diagram = result.diagramSvg ? `<section><h2>图示</h2>${result.diagramSvg}</section>` : "";
-  const doc = result.docHtml ? `<section><h2>版面</h2>${result.docHtml}</section>` : "";
+  const diagram = result.diagramSvg ? `<section><h2>图示</h2>${sanitizeRichHtml(result.diagramSvg)}</section>` : "";
+  const doc = result.docHtml ? `<section><h2>版面</h2>${sanitizeRichHtml(result.docHtml)}</section>` : "";
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -90,7 +91,14 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
   th, td { border: 1px solid #e3d7c4; padding: 8px 10px; text-align: left; vertical-align: top; }
   th { background: #efe6d6; }
   .slide { background: #fffdf8; border: 1px solid #e3d7c4; border-radius: 12px; padding: 16px 18px; margin: 0 0 12px; }
-  svg { width: 100%; height: auto; background: #fffdf8; }
+  svg { width: 100%; max-width: 40rem; height: auto; background: #fffdf8; }
+  .diagram-note, .diagram-warning, .diagram-title, .diagram-tree-root, .diagram-tree li { font-size: 16px; line-height: 1.7; }
+  .diagram-note { color: #5e564c; }
+  .diagram-warning { color: #9a3e22; }
+  .diagram-tree { margin: 0; }
+  .diagram-tree-root { margin: 0; border-radius: 10px; background: #1f4d42; color: #f6f1e6; padding: 12px 16px; }
+  .diagram-tree ul { margin: 12px 0 0; padding: 0 0 0 18px; list-style: none; border-left: 2px solid #e0d3be; }
+  .diagram-tree li { margin: 8px 0; border: 1px solid #1f4d42; border-radius: 8px; background: #fffdf8; padding: 10px 12px; }
 </style>
 </head>
 <body>

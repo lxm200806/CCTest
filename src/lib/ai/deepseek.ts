@@ -1,15 +1,8 @@
 import "server-only";
 
-export class ProviderError extends Error {
-  parseError = false;
-  retryable = false;
+import { ProviderError } from "@/lib/ai/errors";
 
-  constructor(message: string, options?: { parseError?: boolean; retryable?: boolean }) {
-    super(message);
-    this.parseError = Boolean(options?.parseError);
-    this.retryable = Boolean(options?.retryable);
-  }
-}
+export { ProviderError };
 
 type ChatOptions = {
   url: string;

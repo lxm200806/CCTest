@@ -54,7 +54,7 @@ function bandLine(grade: string) {
 const TASKS: Record<string, { ask: string; extra: string }> = {
   "ai-lesson": {
     ask: "写一份可以拿着上课的课堂脚本。sections 里必须有：学习目标、时间安排（table，列：段落/分钟/做什么）、教师口述、板书、检查题。口述要引用用户课题里的具体概念，检查题要能在课上当堂做。",
-    extra: "时间安排的分钟数加总要接近用户选择的课时，不要平均分成没有内容的空段。",
+    extra: "时间安排表的各段时长相加必须等于用户选择的课时分钟数。可以写「5」或「0-5 分钟」这种时段。不要靠行数冒充分钟。若写了合计行，合计不会再加一次。别的表里的数字不算课时。",
   },
   "ai-prep": {
     ask: "写备课纸条，不是学生讲义。sections 必须有：教学目标、重难点、四十分钟节奏（table，列：时间/活动/谁）、分层（需要支架的学生和学有余力的学生分别做什么）、课后一句。用语对齐用户选的教材口径，但例题按课题现写。",
@@ -77,8 +77,8 @@ const TASKS: Record<string, { ask: string; extra: string }> = {
     extra: '额外字段："slides": [{"kicker":"","title":"","bullets":[""],"notes":""}]',
   },
   "ai-visualize": {
-    ask: "解释这张图怎么读，并给出可画的数据。sections 必须有：怎么读、讲的时候停在哪、不要同时做的事。另外给出 diagram 对象，kind 必须与用户选择的图类型对应：流程图 flow、对比表 compare、函数图像 graph、结构图 tree、时间线 timeline。nodes、rows、leaves、events 用这个概念本身的词，不要用空泛的「步骤一」。函数图像若概念是减小、反比或负系数，falling 为 true。",
-    extra: '额外字段："diagram": {"kind":"flow|compare|graph|tree|timeline","title":"","nodes":["四到五个短词"],"rows":[["维度","左","右"]],"falling":false,"leaves":["四项"],"events":["四项"]}',
+    ask: "解释这张图怎么读。sections 必须有：怎么读、讲的时候停在哪、不要同时做的事。另外给出 diagram 对象，kind 必须与用户选择的图类型对应：流程图 flow、对比表 compare、函数图像 graph、结构图 tree、时间线 timeline。nodes、rows、leaves、events 用这个概念本身的词，写全需要的分支，不要只用空泛的「步骤一」。函数图像由服务端按用户解析式作图：若是确定的一次函数，说明里写出 k、b 和与坐标轴的交点；若是字母参数、二次或反比例、或有不止一个式子，要明确说不能画成一条确定的直线，不要假装已经画出准确图像。",
+    extra: '额外字段："diagram": {"kind":"flow|compare|graph|tree|timeline","title":"","nodes":["概念本身的步骤"],"rows":[["维度","左","右"]],"leaves":["全部分支"],"events":["全部节点"]}',
   },
   "ai-explain": {
     ask: "讲用户贴出的这道题，不要换成相似题。sections 必须有：审题、分步、得分点。若用户给了草稿，再加一节对照草稿，先指出草稿里对的部分。数学题能算的要把结果算出来；不能从题面确定的量，写明缺哪一个条件。",
@@ -105,7 +105,7 @@ const TASKS: Record<string, { ask: string; extra: string }> = {
     extra: '额外字段："items": [{"level":"同构","stem":"","answer":""}]',
   },
   "ai-analysis": {
-    ask: "分析这一张卷，使用用户给出的得分、满分、用时和错题摘录。必须给出 items 数组，每行错题一个元素 {no, point, kind}，kind 只能是知识、审题、计算、时间、规范。再给 priorities，最多两条，写先处理哪一类。sections 必须有得分结构、错题表、错因分布、明天的一步。得分高于满分时先指出数据异常。",
+    ask: "分析这一张卷，使用用户给出的得分、满分、用时和错题摘录。必须给出 items 数组，每行错题一个元素 {no, point, kind}，kind 只能是知识、审题、计算、时间、规范。再给 priorities，最多两条，写先处理哪一类。sections 必须有得分结构、错因分布、明天的一步。错题明细只放在 items 里，不要在 sections 里再做一张相同的错题表。得分高于满分时先指出数据异常。",
     extra: '额外字段："items": [{"no":"","point":"","kind":"计算"}], "priorities": [""]',
   },
   "ai-score-plan": {

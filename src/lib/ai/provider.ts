@@ -1,6 +1,7 @@
 import "server-only";
 
 import { chatComplete, ProviderError } from "@/lib/ai/deepseek";
+import { isRepairable } from "@/lib/ai/errors";
 import { mockGenerate } from "@/lib/ai/mock";
 import { presentModelResult } from "@/lib/ai/parse-result";
 import { buildPrompt } from "@/lib/ai/prompts";
@@ -48,7 +49,7 @@ export async function generateTool(tool: ToolDef, input: Record<string, string>)
         source: runtime.provider as SourceName,
       };
     } catch (error) {
-      if (!(error instanceof ProviderError) || !error.parseError) throw error;
+      if (!isRepairable(error)) throw error;
       last = error;
       repair = `\n\n上次输出不合格：${error.message}\n请只输出修正后的 JSON，不要解释。`;
     }
