@@ -190,9 +190,8 @@ function mergeGrade(result: ToolResult, raw: Raw, input: Record<string, string>)
   if (comments.length < 2 || !rewrite || !/知识|审题|计算|时间|规范/.test(kind)) {
     throw new ProviderError("批改结果缺少错因、两条批注或改写。点数未扣除。", { parseError: true });
   }
-  const anchor = anchorOf(val(input, "answer"));
   const blob = `${comments.join("\n")}\n${rewrite}\n${result.sections.map(flatten).join("\n")}`;
-  if (anchor && !blob.includes(anchor)) {
+  if (!mentionsAny(val(input, "answer"), blob)) {
     throw new ProviderError("批改没有引用学生作答。点数未扣除。", { parseError: true });
   }
   result.subtitle = `${result.subtitle} · ${score}/100 · ${kind}`.replace(/^ · /, "");
@@ -240,8 +239,7 @@ function documentFrom(raw: Raw, result: ToolResult, input: Record<string, string
   const fromSections = result.sections.flatMap((item) => item.paragraphs ?? []);
   const body = paragraphs.length ? paragraphs : fromSections;
   if (body.length < 2) throw new ProviderError("排版正文不足两段。点数未扣除。", { parseError: true });
-  const anchor = anchorOf(val(input, "source"));
-  if (anchor && !body.join("\n").includes(anchor)) {
+  if (!mentionsAny(val(input, "source"), body.join("\n"))) {
     throw new ProviderError("排版没有保留用户正文中的内容。点数未扣除。", { parseError: true });
   }
   const layout = val(input, "layout") === "双栏" ? "columns-2" : "";
@@ -255,16 +253,15 @@ function assertUsable(tool: ToolDef, input: Record<string, string>, result: Tool
   }
   const blob = flattenResult(result);
   const topic = val(input, "topic") || val(input, "concept") || val(input, "scope") || val(input, "chapter") || val(input, "question") || val(input, "original") || val(input, "wrong");
-  const anchor = anchorOf(topic);
-  if (anchor && tool.id !== "ai-word" && tool.id !== "ai-grade" && !blob.includes(anchor) && !JSON.stringify(raw).includes(anchor)) {
+  const rawText = JSON.stringify(raw);
+  if (tool.id !== "ai-word" && tool.id !== "ai-grade" && !mentionsAny(topic, blob, rawText)) {
     throw new ProviderError("结果没有贴住用户给出的课题或题目。点数未扣除。", { parseError: true });
   }
   if (tool.id === "ai-lesson" && !result.sections.some((item) => item.table)) {
     throw new ProviderError("课堂脚本缺少时间表。点数未扣除。", { parseError: true });
   }
   if (tool.id === "ai-explain") {
-    const questionAnchor = anchorOf(val(input, "question"));
-    if (questionAnchor && !blob.includes(questionAnchor)) {
+    if (!mentionsAny(val(input, "question"), blob)) {
       throw new ProviderError("讲题稿没有对照原题。点数未扣除。", { parseError: true });
     }
   }
@@ -286,8 +283,26 @@ function flattenResult(result: ToolResult) {
   return [result.title, result.subtitle, result.summary, ...result.sections.map(flatten), ...(result.slides ?? []).flatMap((slide) => [slide.title, ...slide.bullets, slide.notes])].join("\n");
 }
 
-function anchorOf(value: string) {
-  const chunks = value.match(/[\u4e00-\u9fa5A-Za-z0-9]{4,12}/g);
-  if (!chunks?.length) return "";
-  return [...chunks].sort((left, right) => right.length - left.length)[0].slice(0, 8);
+// 模型常会改写原题的标点和空格，所以先去掉空白和标点再比对，
+// 并且只要原文里任意一段 4 字以上的片段出现在结果中就算贴住。
+function normalizeForMatch(value: string) {
+  return value.replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, "");
+}
+
+function anchorsOf(value: string) {
+  const chunks = value.match(/[\u4e00-\u9fa5A-Za-z0-9]{4,}/g) ?? [];
+  const pieces = new Set<string>();
+  for (const chunk of chunks) {
+    for (let start = 0; start + 4 <= chunk.length; start += 2) pieces.add(chunk.slice(start, start + 4));
+  }
+  const compact = normalizeForMatch(value);
+  for (let start = 0; start + 6 <= compact.length; start += 3) pieces.add(compact.slice(start, start + 6));
+  return [...pieces];
+}
+
+function mentionsAny(source: string, ...targets: string[]) {
+  const anchors = anchorsOf(source);
+  if (!anchors.length) return true;
+  const haystacks = targets.flatMap((target) => [target, normalizeForMatch(target)]);
+  return anchors.some((anchor) => haystacks.some((haystack) => haystack.includes(anchor)));
 }
