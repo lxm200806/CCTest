@@ -1,5 +1,5 @@
 import PptxGenJS from "pptxgenjs";
-import type { Slide, ToolResult } from "@/lib/types";
+import type { Section, Slide, ToolResult } from "@/lib/types";
 import { FORMULA_NOTE, cleanText, splitPreserving, visualUnits } from "@/lib/export/text";
 
 const FONT = "Microsoft YaHei";
@@ -32,27 +32,52 @@ export async function buildPptx(result: ToolResult) {
 }
 
 function paginate(result: ToolResult): Piece[] {
+  const requested = result.slides ?? [];
+  if (!requested.length) return sectionPieces(result);
   const pieces: Piece[] = [];
-  for (const slide of result.slides ?? []) pieces.push(...paginateSlide(slide));
+  for (const slide of requested) pieces.push(...paginateSlide(slide));
+  const extra = sectionsAsNotes(result.sections);
+  const split = pieces.length !== requested.length;
+  if (!extra && !split) return pieces;
+  pieces.push({
+    title: "附录：页数说明",
+    kicker: "附录",
+    bullets: [
+      split
+        ? `要求 ${requested.length} 页。有的页放不下，正文拆成了 ${pieces.length} 页，续页带「续」。本文件共 ${pieces.length + 1} 页。`
+        : `要求 ${requested.length} 页。正文就是前面 ${pieces.length} 页。本文件共 ${pieces.length + 1} 页。`,
+      extra ? "使用说明、表格和其余段落写在本页备注，不另开讲稿页。" : "没有另附说明。",
+    ],
+    notes: extra,
+    continued: false,
+  });
+  return pieces;
+}
+
+function sectionPieces(result: ToolResult): Piece[] {
+  const pieces: Piece[] = [];
   for (const section of result.sections) {
     const bullets = [...(section.paragraphs ?? []), ...(section.bullets ?? [])].flatMap((item) => splitPreserving(item, 180));
     const title = cleanText(section.heading) || result.title;
-    if (section.table) {
-      const rows = [section.table.headers, ...section.table.rows].map((row) => row.map((cell) => cleanText(cell)));
-      for (let index = 0; index < rows.length; index += 7) {
-        const chunk = rows.slice(index, index + 7);
-        pieces.push({
-          title,
-          kicker: index === 0 ? "表格" : "表格续",
-          bullets: chunk.map((row) => row.join(" ｜ ")),
-          notes: "",
-          continued: index > 0,
-        });
-      }
-    }
-    pack(pieces, title, section.heading, bullets, "");
+    pack(pieces, title, section.heading, bullets, section.table ? tableText(section) : "");
   }
   return pieces.length ? pieces : [{ title: cleanText(result.title) || "幻灯片", kicker: "", bullets: splitPreserving(result.summary, 180), notes: "", continued: false }];
+}
+
+function sectionsAsNotes(sections: Section[]) {
+  return sections
+    .map((section) => {
+      const lines = [cleanText(section.heading), ...(section.paragraphs ?? []).map(cleanText), ...(section.bullets ?? []).map(cleanText)];
+      if (section.table) lines.push(tableText(section));
+      return lines.filter(Boolean).join("\n");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function tableText(section: Section) {
+  if (!section.table) return "";
+  return [section.table.headers, ...section.table.rows].map((row) => row.map((cell) => cleanText(cell)).join(" ｜ ")).join("\n");
 }
 
 function paginateSlide(slide: Slide): Piece[] {

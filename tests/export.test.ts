@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -112,7 +112,10 @@ test("pptx and docx are real packages, keep text, and can be built twice", async
     const longBullet = pptResult.slides?.[0]?.bullets[1] ?? "";
     for (const part of splitPreserving(longBullet, 180)) assert.ok(visible.includes(part));
     assert.ok(notes.includes("讲者备注：先停三秒"));
-    assert.ok(visible.includes("表头甲"));
+    assert.ok(notes.includes("表头甲"));
+    assert.equal(visible.includes("表头甲"), false);
+    assert.ok(visible.includes("附录：页数说明"));
+    assert.ok(visible.includes("要求 1 页"));
     const docTypes = docZip.read("[Content_Types].xml").toString("utf8");
     assert.match(docTypes, /wordprocessingml\.document/);
     const documentXml = docZip.read("word/document.xml").toString("utf8");
@@ -148,7 +151,7 @@ test("saved mock lesson decks and word sheets export without calling a model", a
   const docZip = zipText(docBuf);
   try {
     const slides = pptZip.names.filter((name) => /ppt\/slides\/slide\d+\.xml$/.test(name));
-    assert.ok(slides.length >= 8);
+    assert.equal(slides.length, 9);
     const text = xmlText(slides.map((name) => pptZip.read(name).toString("utf8")).join("\n"));
     assert.ok(text.includes("一次函数图像怎么读"));
     const body = xmlText(docZip.read("word/document.xml").toString("utf8"));
@@ -161,6 +164,49 @@ test("saved mock lesson decks and word sheets export without calling a model", a
     docZip.cleanup();
   }
 });
+
+test("the saved live deck still has 14 slides, and the same kind of extra sections no longer become slides", async () => {
+  const saved = readFileSync(new URL("./fixtures/live/aippt-8-requested.pptx", import.meta.url));
+  assert.equal(slideCount(saved), 14);
+  const requested = Array.from({ length: 8 }, (_, index) => ({
+    kicker: `第${index + 1}页`,
+    title: `讲稿第 ${index + 1} 页`,
+    bullets: ["先看条件。", "再读图。"],
+    notes: "停一下。",
+  }));
+  const rebuilt = await buildPptx({
+    title: "一次函数图像怎么读",
+    subtitle: "初二 数学",
+    summary: "按 8 页讲。",
+    slides: requested,
+    sections: [
+      { heading: "使用说明", paragraphs: ["本页包按8页讲稿组织，可直接用于演示文稿导出。".repeat(8)] },
+      { heading: "8页结构速览", paragraphs: ["下表用于教师快速核对。"], table: { headers: ["页码", "页面任务"], rows: [["1", "导入"], ["2", "条件"], ["3", "读k"], ["4", "读b"], ["5", "交点"], ["6", "验证"], ["7", "错因"], ["8", "收束"]] } },
+      { heading: "错因与明天第一步", paragraphs: ["明天第一步：先标出与 y 轴的交点。"] },
+    ],
+  });
+  assert.equal(slideCount(rebuilt), 9);
+  const zip = zipText(rebuilt);
+  try {
+    const slides = zip.names.filter((name) => /ppt\/slides\/slide\d+\.xml$/.test(name));
+    const visible = xmlText(slides.map((name) => zip.read(name).toString("utf8")).join("\n"));
+    const notes = xmlText(zip.names.filter((name) => name.includes("notesSlide")).map((name) => zip.read(name).toString("utf8")).join("\n"));
+    assert.equal(visible.includes("本页包按8页讲稿组织"), false);
+    assert.match(visible, /要求 8 页/);
+    assert.match(visible, /本文件共 9 页/);
+    assert.equal((visible.match(/附录：页数说明/g) ?? []).length, 1);
+    assert.ok(notes.includes("本页包按8页讲稿组织"));
+    assert.ok(notes.includes("明天第一步：先标出与 y 轴的交点。"));
+    assert.ok(notes.includes("页码 ｜ 页面任务"));
+    for (const slide of requested) assert.ok(visible.includes(slide.title));
+  } finally {
+    zip.cleanup();
+  }
+});
+
+function slideCount(buf: Buffer) {
+  return new Set(buf.toString("latin1").match(/ppt\/slides\/slide\d+\.xml/g) ?? []).size;
+}
 
 function samplePpt(): ToolResult {
   return longPpt();

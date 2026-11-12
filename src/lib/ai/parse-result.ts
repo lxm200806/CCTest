@@ -1,3 +1,4 @@
+import { alignChoiceAnswer, labelChoices, optionList } from "@/lib/ai/choices";
 import { ProviderError } from "@/lib/ai/errors";
 import { assertScheduleMatches } from "@/lib/ai/schedule";
 import { compareSvg, esc, flowSvg, graphSvg, resolveFunctionGraph, section, timelineSvg, treeSvg, unsupportedGraphSvg, val } from "@/lib/ai/shared";
@@ -139,17 +140,15 @@ function mergeQuestions(result: ToolResult, raw: Raw, count: number) {
     throw new ProviderError(`试卷需要 ${count} 题，模型返回了 ${questions.length} 题。点数未扣除。`, { parseError: true });
   }
   const stems = questions.map((item, index) => {
-    const options = strings(item.options);
+    const options = labelChoices(optionList(item.options));
     const points = Number(item.points) || 0;
     const type = text(item.type) || "解答";
     const stem = text(item.stem);
-    if (!stem || !text(item.answer)) throw new ProviderError(`第 ${index + 1} 题缺少题干或答案。点数未扣除。`, { parseError: true });
-    return `${index + 1}.（${points || "?"} 分，${type}）${stem}${options.length ? `\n${options.join("  ")}` : ""}`;
+    const answer = alignChoiceAnswer(text(item.answer), options);
+    if (!stem || !answer) throw new ProviderError(`第 ${index + 1} 题缺少题干或答案。点数未扣除。`, { parseError: true });
+    return { stem: `${index + 1}.（${points || "?"} 分，${type}）${stem}${options.length ? `\n${options.join("\n")}` : ""}`, answer, explanation: text(item.explanation) };
   });
-  const answers = questions.map((item, index) => {
-    const explanation = text(item.explanation);
-    return `${index + 1}. ${text(item.answer)}${explanation ? ` ${explanation}` : ""}`;
-  });
+  const answers = stems.map((item, index) => `${index + 1}. ${item.answer}${item.explanation ? ` ${item.explanation}` : ""}`);
   const points = questions.map((item) => Number(item.points) || 0);
   if (points.some((point) => point <= 0)) throw new ProviderError("有题目没有正的分值。点数未扣除。", { parseError: true });
   const pointSum = points.reduce((sum, point) => sum + point, 0);
@@ -158,7 +157,7 @@ function mergeQuestions(result: ToolResult, raw: Raw, count: number) {
   }
   result.sections = [
     ...result.sections.filter((item) => !/试题|参考答案/.test(item.heading)),
-    section("试题", stems),
+    section("试题", stems.map((item) => item.stem)),
     section("参考答案", answers),
   ];
 }

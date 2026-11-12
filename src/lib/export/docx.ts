@@ -36,7 +36,9 @@ function blockToParagraph(block: TextBlock) {
 }
 
 function paragraph(text: string) {
-  return new Paragraph({ spacing: { after: 160, line: 360 }, children: [run(text, 24)] });
+  const lines = text.split("\n");
+  const children = lines.flatMap((line, index) => (index === 0 ? [run(line, 24)] : [new TextRun({ break: 1 }), run(line, 24)]));
+  return new Paragraph({ spacing: { after: 160, line: 360 }, children });
 }
 
 function run(text: string, size: number) {

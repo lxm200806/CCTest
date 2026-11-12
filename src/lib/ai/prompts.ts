@@ -85,7 +85,7 @@ const TASKS: Record<string, { ask: string; extra: string }> = {
     extra: "分步里要出现题干中的具体数字或关键词，方便学生对照原题。",
   },
   "ai-paper": {
-    ask: "按范围、题量、难度和建议用时组一套卷。必须给出 questions 数组，长度等于题量。每题 {type, stem, options, answer, points, explanation}。选择或判断题 options 写完整选项，解答题 options 为空数组。points 合计接近 100。sections 里写作答说明即可，试题和答案由数组生成。难度为提高为主时，后三分之一题要多一个条件。",
+    ask: "按范围、题量、难度和建议用时组一套卷。必须给出 questions 数组，长度等于题量。每题 {type, stem, options, answer, points, explanation}。选择题每个选项单独一条，并写成「A. 6」这种带字母的形式；answer 使用同一个字母，并写出该选项里的内容。解答题 options 为空数组。points 合计接近 100。sections 里写作答说明即可，试题和答案由数组生成。难度为提高为主时，后三分之一题要多一个条件。",
     extra: '题量必须等于用户选择的数量，每题分值是正数，合计要接近 100。正文要写出建议用时的分钟数。额外字段："questions": [{"type":"","stem":"","options":[],"answer":"","points":4,"explanation":""}]',
   },
   "ai-grade": {

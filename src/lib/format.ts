@@ -52,7 +52,7 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
   const { result } = record;
   const sections = result.sections
     .map((section) => {
-      const paragraphs = (section.paragraphs ?? []).map((paragraph) => `<p>${esc(paragraph)}</p>`).join("");
+      const paragraphs = (section.paragraphs ?? []).map((paragraph) => `<p>${esc(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
       const bullets = section.bullets?.length
         ? `<ul>${section.bullets.map((bullet) => `<li>${esc(bullet)}</li>`).join("")}</ul>`
         : "";
