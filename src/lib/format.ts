@@ -1,3 +1,4 @@
+import { fileStamp, formatStamp } from "@/lib/dates";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { GenerationRecord, ToolResult } from "@/lib/types";
 
@@ -20,7 +21,7 @@ export function toMarkdown(record: Pick<GenerationRecord, "toolName" | "source" 
     "",
     result.summary,
     "",
-    `> ${record.toolName} · ${sourceLabel(record.source)} · ${record.createdAt}`,
+    `> ${record.toolName} · ${sourceLabel(record.source)} · ${formatStamp(record.createdAt)}`,
     "",
   ];
   for (const section of result.sections) {
@@ -103,7 +104,7 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
 </head>
 <body>
 <main>
-  <p class="meta">${esc(record.toolName)} · ${esc(sourceLabel(record.source))}</p>
+  <p class="meta">${esc(record.toolName)} · ${esc(sourceLabel(record.source))} · ${esc(formatStamp(record.createdAt))}</p>
   <h1>${esc(result.title)}</h1>
   <p class="sub">${esc(result.subtitle)}</p>
   <p>${esc(result.summary)}</p>
@@ -114,9 +115,8 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
 `;
 }
 
-export function downloadName(toolId: string, ext: string) {
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "");
-  return `${toolId}-${stamp}.${ext}`;
+export function downloadName(toolId: string, ext: string, now = new Date()) {
+  return `${toolId}-${fileStamp(now)}.${ext}`;
 }
 
 export function resultHasPrintableFigure(result: ToolResult) {
