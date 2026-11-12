@@ -180,7 +180,74 @@
 }
 
 @media (max-width: 720px) {
+  .study-sheet {
+    padding: 16px;
+  }
+
   .study-sheet .columns-2 {
     columns: 1;
   }
+}
+
+.diagram-frame svg,
+.diagram-figure svg {
+  display: block;
+  width: 100%;
+  max-width: 40rem;
+  height: auto;
+}
+
+.diagram-figure,
+.diagram-tree {
+  margin: 0;
+}
+
+.diagram-note,
+.diagram-warning,
+.diagram-title,
+.diagram-tree-root,
+.diagram-tree li {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.diagram-note,
+.diagram-warning {
+  margin: 10px 0 0;
+}
+
+.diagram-note {
+  color: #5e564c;
+}
+
+.diagram-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.diagram-warning {
+  color: #9a3e22;
+}
+
+.diagram-tree-root {
+  margin: 0;
+  border-radius: 10px;
+  background: #1f4d42;
+  color: #f6f1e6;
+  padding: 12px 16px;
+}
+
+.diagram-tree ul {
+  margin: 12px 0 0;
+  padding: 0 0 0 18px;
+  list-style: none;
+  border-left: 2px solid #e0d3be;
+}
+
+.diagram-tree li {
+  margin: 8px 0;
+  border: 1px solid #1f4d42;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 10px 12px;
 }

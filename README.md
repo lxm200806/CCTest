@@ -73,6 +73,45 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 每个工具都能下载 Markdown、JSON 和 HTML。
 
+## 这一阶段
+
+函数图像按解析式作图。能确定的一次函数会画出坐标轴、刻度和截距；字母参数、二次函数、反比例，或不止一个式子时，只说明不能确定，不补一条示意直线。结构图保留长标题和全部分支，文字可以换行。
+
+试卷分析只保留一张错题表。得分结构、错因分布和其他不同的说明会留下来。
+
+AI出课核对时间安排里各段分钟是否等于所选课时。合计行和其他表不计入，也不把行数当成分钟。对不上就走原来的修正流程，失败不扣点。
+
+15 个工具共用同一张表单：必填项会指出哪一栏，草稿留在这台浏览器，生成中不能重复提交。页面写明成功后才扣点。结果可以复制 Markdown、打印或下载 HTML。AIPPT 还可以下载 PPTX，AIWORD 还可以下载 DOCX。公式按普通文字写入，不是 Office 公式对象。
+
+页面、复制的 Markdown 和下载的 HTML 都按北京时间（Asia/Shanghai）显示生成时间，不跟服务器所在时区走。
+
+## 图片识别
+
+AI作业批改可以把印刷体图片交给本机的 [Tesseract](https://github.com/tesseract-ocr/tesseract) 识别。它是开源程序，不调用付费接口，也不把图片发给模型。系统需要：
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-eng
+```
+
+语言数据一般在 `/usr/share/tesseract-ocr/5/tessdata`，要有 `chi_sim.traineddata` 和 `eng.traineddata`。没有程序或语言包时，页面写明缺什么，不会返回假文字，也不会扣点。
+
+识别结果要自己改，并点「写入题目要求」或「写入学生作答」之后，才会进入原来的生成。手写和复杂公式可能不准。图片不写入账号 JSON，也不放进浏览器草稿。上传只接受 PNG、JPEG、WebP，有大小和尺寸上限；SVG 和网址不会被读取。识别只针对印刷体，手写还不能当正式结果用。
+
+## 幻灯片和文稿
+
+AIPPT 的已保存结果可以下载真正的 `.pptx`，AIWORD 可以下载真正的 `.docx`。下载只读取当前账号自己的那一次生成，不调用模型，也不扣点。中文使用「微软雅黑」，没有这款字体时由系统回退。一页放不下的要点会拆到下一页，而不是把字缩到看不清。打印和 HTML 下载仍然保留。
+
+各工具的结构检查写在 [docs/tool-acceptance.md](docs/tool-acceptance.md)。这些是夹具和本地示例，不是在线模型已经教对了。
+
+检查用的是确定性夹具，不调用在线模型：
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
+
 ## 结构
 
 ```

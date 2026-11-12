@@ -1,3 +1,6 @@
+import { fileStamp, formatStamp } from "@/lib/dates";
+import { showBlanks } from "@/lib/export/text";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { GenerationRecord, ToolResult } from "@/lib/types";
 
 export function sourceLabel(source: string) {
@@ -7,7 +10,7 @@ export function sourceLabel(source: string) {
 }
 
 function esc(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return showBlanks(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
 export function toMarkdown(record: Pick<GenerationRecord, "toolName" | "source" | "createdAt" | "result">) {
@@ -19,13 +22,13 @@ export function toMarkdown(record: Pick<GenerationRecord, "toolName" | "source" 
     "",
     result.summary,
     "",
-    `> ${record.toolName} · ${sourceLabel(record.source)} · ${record.createdAt}`,
+    `> ${record.toolName} · ${sourceLabel(record.source)} · ${formatStamp(record.createdAt)}`,
     "",
   ];
   for (const section of result.sections) {
     lines.push(`## ${section.heading}`, "");
-    for (const paragraph of section.paragraphs ?? []) lines.push(paragraph, "");
-    for (const bullet of section.bullets ?? []) lines.push(`- ${bullet}`);
+    for (const paragraph of section.paragraphs ?? []) lines.push(showBlanks(paragraph), "");
+    for (const bullet of section.bullets ?? []) lines.push(`- ${showBlanks(bullet)}`);
     if (section.bullets?.length) lines.push("");
     if (section.table) {
       lines.push(`| ${section.table.headers.join(" | ")} |`);
@@ -38,8 +41,8 @@ export function toMarkdown(record: Pick<GenerationRecord, "toolName" | "source" 
     lines.push("## 分页讲稿", "");
     result.slides.forEach((slide, index) => {
       lines.push(`### ${index + 1}. ${slide.title}`, "", slide.kicker, "");
-      for (const bullet of slide.bullets) lines.push(`- ${bullet}`);
-      lines.push("", `讲者备注：${slide.notes}`, "");
+      for (const bullet of slide.bullets) lines.push(`- ${showBlanks(bullet)}`);
+      lines.push("", `讲者备注：${showBlanks(slide.notes)}`, "");
     });
   }
   if (result.diagramSvg) lines.push("## 图示", "", "图示包含在 HTML 下载里。", "");
@@ -50,7 +53,7 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
   const { result } = record;
   const sections = result.sections
     .map((section) => {
-      const paragraphs = (section.paragraphs ?? []).map((paragraph) => `<p>${esc(paragraph)}</p>`).join("");
+      const paragraphs = (section.paragraphs ?? []).map((paragraph) => `<p>${esc(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
       const bullets = section.bullets?.length
         ? `<ul>${section.bullets.map((bullet) => `<li>${esc(bullet)}</li>`).join("")}</ul>`
         : "";
@@ -72,8 +75,8 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
         )
         .join("")}</section>`
     : "";
-  const diagram = result.diagramSvg ? `<section><h2>图示</h2>${result.diagramSvg}</section>` : "";
-  const doc = result.docHtml ? `<section><h2>版面</h2>${result.docHtml}</section>` : "";
+  const diagram = result.diagramSvg ? `<section><h2>图示</h2>${sanitizeRichHtml(result.diagramSvg)}</section>` : "";
+  const doc = result.docHtml ? `<section><h2>版面</h2>${sanitizeRichHtml(result.docHtml)}</section>` : "";
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -90,12 +93,19 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
   th, td { border: 1px solid #e3d7c4; padding: 8px 10px; text-align: left; vertical-align: top; }
   th { background: #efe6d6; }
   .slide { background: #fffdf8; border: 1px solid #e3d7c4; border-radius: 12px; padding: 16px 18px; margin: 0 0 12px; }
-  svg { width: 100%; height: auto; background: #fffdf8; }
+  svg { width: 100%; max-width: 40rem; height: auto; background: #fffdf8; }
+  .diagram-note, .diagram-warning, .diagram-title, .diagram-tree-root, .diagram-tree li { font-size: 16px; line-height: 1.7; }
+  .diagram-note { color: #5e564c; }
+  .diagram-warning { color: #9a3e22; }
+  .diagram-tree { margin: 0; }
+  .diagram-tree-root { margin: 0; border-radius: 10px; background: #1f4d42; color: #f6f1e6; padding: 12px 16px; }
+  .diagram-tree ul { margin: 12px 0 0; padding: 0 0 0 18px; list-style: none; border-left: 2px solid #e0d3be; }
+  .diagram-tree li { margin: 8px 0; border: 1px solid #1f4d42; border-radius: 8px; background: #fffdf8; padding: 10px 12px; }
 </style>
 </head>
 <body>
 <main>
-  <p class="meta">${esc(record.toolName)} · ${esc(sourceLabel(record.source))}</p>
+  <p class="meta">${esc(record.toolName)} · ${esc(sourceLabel(record.source))} · ${esc(formatStamp(record.createdAt))}</p>
   <h1>${esc(result.title)}</h1>
   <p class="sub">${esc(result.subtitle)}</p>
   <p>${esc(result.summary)}</p>
@@ -106,9 +116,8 @@ export function toHtmlDocument(record: Pick<GenerationRecord, "toolName" | "sour
 `;
 }
 
-export function downloadName(toolId: string, ext: string) {
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "");
-  return `${toolId}-${stamp}.${ext}`;
+export function downloadName(toolId: string, ext: string, now = new Date()) {
+  return `${toolId}-${fileStamp(now)}.${ext}`;
 }
 
 export function resultHasPrintableFigure(result: ToolResult) {

@@ -3,6 +3,7 @@ import "server-only";
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import fs from "fs";
 import path from "path";
+import { ownedGeneration } from "@/lib/export/owned";
 import { presentLedger } from "@/lib/present";
 import type { GenerationRecord, LedgerItem, PublicUser, Student, SubjectNote } from "@/lib/types";
 
@@ -312,6 +313,10 @@ export async function spendAndSave(input: {
     draft.generations = [...others, ...own.slice(-39), record];
     return { balance: user.credits, record };
   });
+}
+
+export function generationOwnedBy(userId: string, generationId: string) {
+  return ownedGeneration(readStore().generations, userId, generationId);
 }
 
 export function latestGeneration(userId: string, toolId: string) {

@@ -25,12 +25,44 @@ export function weekDays(date = new Date()) {
 
 export const WEEKDAY = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-export function formatStamp(iso: string) {
+const SHANGHAI = "Asia/Shanghai";
+
+function digits(value: string, size: number) {
+  return value.replace(/\D/g, "").padStart(size, "0");
+}
+
+export function shanghaiParts(iso: string) {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${hh}:${mm}`;
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: SHANGHAI,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const pick = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: digits(pick("year"), 4),
+    month: String(Number(digits(pick("month"), 1))),
+    day: String(Number(digits(pick("day"), 1))),
+    hour: digits(pick("hour"), 2),
+    minute: digits(pick("minute"), 2),
+  };
+}
+
+export function formatStamp(iso: string) {
+  const parts = shanghaiParts(iso);
+  if (!parts) return iso;
+  return `${parts.month}月${parts.day}日 ${parts.hour}:${parts.minute}（北京时间）`;
+}
+
+export function fileStamp(date = new Date()) {
+  const parts = shanghaiParts(date.toISOString());
+  if (!parts) return "time";
+  return `${parts.year}${parts.month.padStart(2, "0")}${parts.day.padStart(2, "0")}${parts.hour}${parts.minute}`;
 }
 
 export function dayCount(checkins: { date: string; done: boolean }[], date: string) {
