@@ -36,6 +36,7 @@ export function isImagePayload(value: string) {
 }
 
 export function inspectImage(bytes: Buffer, declaredType: string, maxBytes = OCR_MAX_BYTES): InspectedImage {
+  if (bytes.length === 0) throw new OcrError("文件是空的。这次不扣点。");
   if (bytes.length > maxBytes) {
     throw new OcrError(`图片超过 ${Math.round(maxBytes / (1024 * 1024))}MB，已停止。这次不扣点。`, 413);
   }
@@ -66,7 +67,17 @@ function looksLikeSvg(bytes: Buffer, declaredType: string) {
 }
 
 function sniff(bytes: Buffer): ImageKind | null {
-  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) return "png";
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpeg";
   if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") return "webp";
   return null;

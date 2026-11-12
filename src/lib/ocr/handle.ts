@@ -15,7 +15,7 @@ export async function handleOcrPost(
   user: PublicUser | null,
   recognize: (bytes: Buffer, declaredType: string, signal: AbortSignal) => Promise<OcrOutcome>,
 ) {
-  if (!user) return json({ error: "请先登录" }, 401);
+  if (!user?.id?.trim()) return json({ error: "请先登录" }, 401);
   const declaredLength = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declaredLength) && declaredLength > OCR_MAX_BYTES + 256 * 1024) {
     return json({ error: "上传超过大小限制。这次不扣点。" }, 413);
@@ -40,23 +40,51 @@ function streamRecognition(
   signal: AbortSignal,
   recognize: (bytes: Buffer, declaredType: string, signal: AbortSignal) => Promise<OcrOutcome>,
 ) {
+  const local = new AbortController();
+  const abort = () => local.abort();
+  if (signal.aborted) local.abort();
+  else signal.addEventListener("abort", abort, { once: true });
   const encoder = new TextEncoder();
+  const queue: OcrEvent[] = [];
+  let finished = false;
+  let waiters: Array<() => void> = [];
+  const notify = () => {
+    const pending = waiters;
+    waiters = [];
+    pending.forEach((resume) => resume());
+  };
+  const push = (event: OcrEvent) => {
+    queue.push(event);
+    notify();
+  };
+  void (async () => {
+    try {
+      push({ stage: "recognize" });
+      const outcome = await recognize(file.bytes, file.type, local.signal);
+      push({ stage: "done", text: outcome.text, warning: outcome.warning });
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "识别失败。这次不扣点。";
+      push({ stage: "error", error: message.includes("不扣点") ? message : `${message}这次不扣点。` });
+    } finally {
+      finished = true;
+      inflight.delete(userId);
+      signal.removeEventListener("abort", abort);
+      notify();
+    }
+  })();
   const stream = new ReadableStream({
-    async start(controller) {
-      const send = (event: OcrEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      try {
-        send({ stage: "recognize" });
-        const outcome = await recognize(file.bytes, file.type, signal);
-        send({ stage: "done", text: outcome.text, warning: outcome.warning });
-      } catch (error) {
-        const message = error instanceof Error && error.message ? error.message : "识别失败。这次不扣点。";
-        send({ stage: "error", error: message.includes("不扣点") ? message : `${message}这次不扣点。` });
-      } finally {
-        inflight.delete(userId);
-        controller.close();
+    async pull(controller) {
+      while (queue.length === 0 && !finished) {
+        await new Promise<void>((resolve) => {
+          waiters.push(resolve);
+        });
       }
+      const event = queue.shift();
+      if (event) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      if (finished && queue.length === 0) controller.close();
     },
     cancel() {
+      local.abort();
       inflight.delete(userId);
     },
   });

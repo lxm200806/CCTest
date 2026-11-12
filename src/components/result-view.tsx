@@ -1,13 +1,74 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Download, FileJson, FileText, Printer } from "lucide-react";
+import { Copy, Download, FileJson, FileText, Presentation, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadName, sourceLabel, toHtmlDocument, toMarkdown } from "@/lib/format";
 import { MOCK_NOTICE } from "@/lib/ai/notice";
 import { formatStamp } from "@/lib/dates";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import type { PublicGeneration } from "@/lib/types";
+
+function emptyExportCopy(kind: "pptx" | "docx" | null) {
+  if (kind === "pptx") return "生成后可以下载 PPTX，也可以打印 HTML。公式按文字放进幻灯片，不是公式对象。下载不另扣点。";
+  if (kind === "docx") return "生成后可以下载 DOCX，也可以打印 HTML。公式按普通文字写入。下载不另扣点。";
+  return "可以复制 Markdown，或下载 Markdown、JSON、HTML。打印使用 HTML。";
+}
+
+function exportCopy(kind: "pptx" | "docx" | null) {
+  if (kind === "pptx") return "PPTX 来自这次已保存的分页讲稿，下载不调用模型，也不扣点。公式按文字写入。打印和 HTML 仍然可用。";
+  if (kind === "docx") return "DOCX 来自这次已保存的文稿，下载不调用模型，也不扣点。公式按普通文字写入。打印和 HTML 仍然可用。";
+  return "复制的是 Markdown。打印和 HTML 下载是同一份页面。";
+}
+
+function filenameFromDisposition(header: string) {
+  const star = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (star?.[1]) return decodeURIComponent(star[1]);
+  const plain = header.match(/filename="([^"]+)"/i);
+  return plain?.[1] ?? "";
+}
+
+function OfficeButton({ recordId, kind }: { recordId: string; kind: "pptx" | "docx" }) {
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [message, setMessage] = useState("");
+  async function download() {
+    setState("loading");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/export/${kind}?id=${encodeURIComponent(recordId)}`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        setMessage(payload?.error || "没有下载成功。这次不扣点。");
+        setState("error");
+        return;
+      }
+      const blob = await response.blob();
+      const name = filenameFromDisposition(response.headers.get("Content-Disposition") ?? "") || downloadName(kind === "pptx" ? "ai-ppt" : "ai-word", kind);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(url);
+      setState("idle");
+    } catch {
+      setMessage("下载中断。可以再试。这次不扣点。");
+      setState("error");
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" variant="outline" className="h-11 min-h-11" disabled={state === "loading"} onClick={() => void download()}>
+        <Presentation /> {state === "loading" ? "正在准备" : kind === "pptx" ? "PPTX" : "DOCX"}
+      </Button>
+      {state === "error" ? (
+        <span className="text-sm leading-6 text-clay" role="alert">
+          {message} <button type="button" className="underline" onClick={() => void download()}>再试一次</button>
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function saveFile(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -54,6 +115,7 @@ export function ResultView({
   balanceNote = null,
   onRetry,
   onRestoreInput,
+  exportKind = null,
 }: {
   record: PublicGeneration | null;
   pending: boolean;
@@ -65,6 +127,7 @@ export function ResultView({
   balanceNote?: number | null;
   onRetry?: () => void;
   onRestoreInput?: (input: Record<string, string>) => void;
+  exportKind?: "pptx" | "docx" | null;
 }) {
   const [copied, setCopied] = useState("");
   const pendingText = live === false ? "正在生成本地示例，没有调用模型。成功后才会扣点。" : "正在生成。成功后才会扣点。";
@@ -101,10 +164,10 @@ export function ResultView({
         <div className="rounded-xl border border-dashed border-border px-4 py-10 text-base leading-7 text-muted-foreground">
           <p className="font-medium text-foreground">结果会显示在这里</p>
           <p className="mt-2">{empty}</p>
-          <p className="mt-2">可以复制 Markdown，或下载 Markdown、JSON、HTML。打印使用 HTML，这一阶段不导出 PPTX 或 DOCX。图片不会被识别。</p>
+          <p className="mt-2">{emptyExportCopy(exportKind)}</p>
         </div>
       ) : null}
-      {record ? <ResultBody record={record} loadedPast={loadedPast} cost={cost} balanceNote={balanceNote} copied={copied} onCopy={() => void copyMarkdown(record)} onPrint={() => printHtml(toHtmlDocument(record))} onRestoreInput={onRestoreInput} /> : null}
+      {record ? <ResultBody record={record} loadedPast={loadedPast} cost={cost} balanceNote={balanceNote} copied={copied} exportKind={exportKind} onCopy={() => void copyMarkdown(record)} onPrint={() => printHtml(toHtmlDocument(record))} onRestoreInput={onRestoreInput} /> : null}
     </div>
   );
 }
@@ -118,12 +181,14 @@ function ResultBody({
   onCopy,
   onPrint,
   onRestoreInput,
+  exportKind,
 }: {
   record: PublicGeneration;
   loadedPast: boolean;
   cost?: number;
   balanceNote: number | null;
   copied: string;
+  exportKind: "pptx" | "docx" | null;
   onCopy: () => void;
   onPrint: () => void;
   onRestoreInput?: (input: Record<string, string>) => void;
@@ -155,10 +220,11 @@ function ResultBody({
           <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "md"), toMarkdown(record), "text/markdown")}><FileText /> Markdown</Button>
           <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "json"), JSON.stringify(record, null, 2), "application/json")}><FileJson /> JSON</Button>
           <Button variant="outline" className="h-11 min-h-11" onClick={() => saveFile(downloadName(record.toolId, "html"), toHtmlDocument(record), "text/html")}><Download /> HTML</Button>
+          {exportKind ? <OfficeButton recordId={record.id} kind={exportKind} /> : null}
         </div>
       </div>
       {copied ? <p className="text-sm text-pine" role="status">{copied}</p> : null}
-      <p className="text-sm leading-6 text-muted-foreground">复制的是 Markdown。打印和 HTML 下载是同一份页面。这一阶段不导出 PPTX 或 DOCX，图片也不会被识别。</p>
+      <p className="text-sm leading-6 text-muted-foreground">{exportCopy(exportKind)}</p>
       <p className="text-base leading-7">{result.summary}</p>
       {result.sections.map((section, sectionIndex) => (
         <section key={`${section.heading}-${sectionIndex}`} className="space-y-2">

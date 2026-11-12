@@ -376,7 +376,7 @@ function word(input: Record<string, string>): ToolResult {
   return {
     title,
     subtitle: `${val(input, "grade")} ${val(input, "subject")} · ${val(input, "docType")} · ${layout}`,
-    summary: "版面用的是你贴上的正文。下载 HTML 后用浏览器打印。",
+    summary: "版面用的是你贴上的正文。可以下载 DOCX，也可以下载 HTML 后用浏览器打印。公式按普通文字保存。",
     docHtml: `<article class="study-sheet"><p class="meta">${esc(val(input, "grade"))} · ${esc(val(input, "subject"))} · ${esc(val(input, "docType"))}</p><h1>${esc(title)}</h1><div class="${layout === "双栏" ? "columns-2" : ""}">${paragraphs}</div><p class="foot">学习工作台 · 本地草稿 · 可打印</p></article>`,
     sections: [section("排版说明", [layout === "双栏" ? "双栏适合短条目。打印前看有没有一段被拦腰截断。" : "单栏适合连续阅读。"])],
   };

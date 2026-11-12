@@ -373,6 +373,7 @@ export function ToolWorkspace({ toolId }: { toolId: string }) {
             balanceNote={balanceNote}
             onRetry={() => void generate()}
             onRestoreInput={restoreRecordInput}
+            exportKind={tool.id === "ai-ppt" ? "pptx" : tool.id === "ai-word" ? "docx" : null}
           />
         </div>
       </div>

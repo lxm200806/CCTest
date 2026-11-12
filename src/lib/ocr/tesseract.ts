@@ -40,9 +40,12 @@ export async function describeTesseract(): Promise<OcrEngineStatus> {
 }
 
 export async function recognizeImageBytes(bytes: Buffer, declaredType: string, signal?: AbortSignal) {
+  if (signal?.aborted) throw new OcrError("识别已取消。这次不扣点。", 499);
   const status = await describeTesseract();
+  if (signal?.aborted) throw new OcrError("识别已取消。这次不扣点。", 499);
   if (!status.available) throw new OcrError(status.detail, 503);
   const image = inspectImage(bytes, declaredType);
+  if (signal?.aborted) throw new OcrError("识别已取消。这次不扣点。", 499);
   const text = await runOnImage(bytes, image.kind, signal);
   const trimmed = text.replace(/\u0000/g, "").trim();
   if (!trimmed) {

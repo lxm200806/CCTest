@@ -42,6 +42,8 @@ test("image checks reject svg, wrong MIME, oversize, and huge dimensions", () =>
   bomb.writeUInt32BE(10000, 16);
   bomb.writeUInt32BE(10000, 20);
   assert.throws(() => inspectImage(bomb, "image/png"), /尺寸太大/);
+  const shortSig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]);
+  assert.throws(() => inspectImage(shortSig, "image/png"), /不是 PNG/);
 });
 
 test("confirmed text is editable and is not applied until the caller places it", () => {
@@ -119,6 +121,49 @@ test("ocr failures and rejected uploads do not recognize or report a charge", as
   assert.equal(calls, 0);
 });
 
+test("cancelling recognition aborts the worker and releases the lock", async () => {
+  resetOcrLock();
+  let aborted = false;
+  const response = await handleOcrPost(formRequest(fixture("synthetic-blank.png"), "image/png"), user("ocr-cancel"), async (_bytes, _type, signal) => {
+    await new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => {
+        aborted = true;
+        reject(new OcrError("识别已取消。这次不扣点。", 499));
+      }, { once: true });
+    });
+    return { text: "", warning: "" };
+  });
+  const reader = response.body?.getReader();
+  assert.ok(reader);
+  await reader.read();
+  await reader.cancel();
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(aborted, true);
+  const again = await handleOcrPost(formRequest(fixture("synthetic-blank.png"), "image/png"), user("ocr-cancel"), async () => ({ text: "第二回", warning: "" }));
+  const raw = await again.text();
+  assert.match(raw, /第二回/);
+  assert.equal(raw.includes("上一次识别还没结束"), false);
+});
+
+test("an empty session id is not authorized, and a form user id is ignored", async () => {
+  resetOcrLock();
+  const empty = await handleOcrPost(formRequest(fixture("synthetic-blank.png"), "image/png"), { ...user("usr_demo"), id: "  " }, async () => {
+    throw new Error("should not run");
+  });
+  assert.equal(empty.status, 401);
+  const form = new FormData();
+  form.set("userId", "usr_other");
+  form.set("url", "http://127.0.0.1/secret");
+  form.set("image", new File([Uint8Array.from(fixture("synthetic-blank.png"))], "synthetic.png", { type: "image/png" }));
+  let seen = 0;
+  const response = await handleOcrPost(new Request("http://local/api/ocr", { method: "POST", body: form }), user("usr_demo"), async () => {
+    seen += 1;
+    return { text: "只属于当前登录账号", warning: "" };
+  });
+  assert.match(await response.text(), /只属于当前登录账号/);
+  assert.equal(seen, 1);
+});
+
 test("a failed recognizer still does not include a point balance", async () => {
   resetOcrLock();
   const response = await handleOcrPost(formRequest(fixture("synthetic-printed-en.png"), "image/png"), user("ocr-fail"), async () => {
@@ -128,6 +173,23 @@ test("a failed recognizer still does not include a point balance", async () => {
   assert.match(raw, /识别失败/);
   assert.match(raw, /不扣点/);
   assert.equal(raw.includes("balance"), false);
+});
+
+test("aborting recognition does not leave a temporary image directory", async () => {
+  const before = new Set(readdirSync(tmpdir()).filter((name) => name.startsWith("sw-ocr-")));
+  const controller = new AbortController();
+  const pending = recognizeImageBytes(fixture("synthetic-printed-zh.png"), "image/png", controller.signal);
+  const timer = setTimeout(() => controller.abort(), 60);
+  try {
+    await pending;
+  } catch (error) {
+    assert.match(error instanceof Error ? error.message : "", /不扣点/);
+  } finally {
+    clearTimeout(timer);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const leftover = readdirSync(tmpdir()).filter((name) => name.startsWith("sw-ocr-") && !before.has(name));
+  assert.deepEqual(leftover, []);
 });
 
 test("synthetic printed fixtures: actual Tesseract output", async () => {
